@@ -1,0 +1,39 @@
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+synthesis_prompt = ChatPromptTemplate.from_template(
+    """
+You are a synthesis agent in a multi-agent document analysis system.
+
+Your task:
+Combine the following agent outputs into a single, clear, and helpful answer.
+
+Rules:
+- Do NOT add new information
+- Do NOT contradict the agent outputs
+- Remove duplication
+- Use clear structure and simple language
+- If something is uncertain, state it clearly
+
+Agent outputs:
+{agent_outputs}
+
+Return a final, well-structured answer.
+"""
+)
+
+def synthesize_answer(agent_outputs: list[str]) -> str:
+
+    llm = ChatOpenAI(
+        temperature=0.2
+    )
+
+    combined_text = "\n\n".join(agent_outputs)
+
+    chain = synthesis_prompt | llm
+
+    response = chain.invoke(
+        {"agent_outputs": combined_text}
+    )
+
+    return str(response.content)
