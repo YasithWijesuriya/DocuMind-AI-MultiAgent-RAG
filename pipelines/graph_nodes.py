@@ -13,39 +13,45 @@ store = InMemoryStore()
 
 def memory_read_node(state):
     thread_id = state.get("thread_id", "default")
-    raw = store.get(thread_id, "conversation")
+    try:
+        raw = store.get(thread_id, "conversation")
 
-    if isinstance(raw, dict):
-        state["conversation_history"] = raw.get("messages", [])
-    else:
+        if isinstance(raw, dict):
+            state["conversation_history"] = raw.get("messages", [])
+        else:
+            state["conversation_history"] = []
+    except Exception as e:
+        print(f"[Error] Memory read failed: {e}")
         state["conversation_history"] = []
     return state
 
 
 def memory_write_node(state):
     thread_id = state.get("thread_id", "default")
+    try:
+        raw = store.get(thread_id, "conversation")
 
-    raw = store.get(thread_id, "conversation")
+        if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
+            history = raw["messages"]
+        else:
+            history = []
 
-    if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
-        history = raw["messages"]
-    else:
-        history = []
+        history.append({
+            "role": "user",
+            "content": state["original_question"]
+        })
+        history.append({
+            "role": "assistant",
+            "content": state["final_answer"]
+        })
 
-    history.append({
-        "role": "user",
-        "content": state["original_question"]
-    })
-    history.append({
-        "role": "assistant",
-        "content": state["final_answer"]
-    })
-
-    store.put(
-        thread_id,
-        "conversation",
-        {"messages": history}
-    )
+        store.put(
+            thread_id,
+            "conversation",
+            {"messages": history}
+        )
+    except Exception as e:
+        print(f"[Error] Memory write failed: {e}")
     return state
  
 def rewrite_node(state):
@@ -64,9 +70,17 @@ def rewrite_node(state):
 
 
 def router_node(state):
-    route = route_question(state["question"])
-    state["route"] = route
+    try:
+        question = state.get("question", "")
+        if not question:
+            raise ValueError("No question found in state")
+        route = route_question(question)
+        state["route"] = route
+    except Exception as e:
+        print(f"[Error] Router node failed: {e}")
+        state["route"] = "retrieval"  # default fallback
     return state
+
 
             # state["question"] → question string එක
             # ඒක route_question() ට pass කරනවා

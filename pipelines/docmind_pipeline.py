@@ -14,29 +14,37 @@ def ask(question: str, docs: list[str], auto_ingest: bool = False):
     :param auto_ingest: if True, auto-ingest file paths into Pinecone
     """
     loaded_docs = []
+    
+    try:
+        if auto_ingest:
+            for doc in docs:
+                if doc.endswith(".pdf"):
+                    try:
+                        auto_ingest_new_document(doc)
+                        loader = PyPDFLoader(doc)
+                        chunks = loader.load()  # returns list of Document objects with metadata
+                        loaded_docs.extend(chunks)
+                    except Exception as e:
+                        print(f"[Error] Auto-ingestion failed for {doc}: {e}")
+                
+                else:
+                    # wrap plain text in Document object
+                    loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
+        else:
+            for doc in docs:
+                if isinstance(doc, str):
+                    loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
+                else:
+                    loaded_docs.append(doc)
 
-    if auto_ingest:
-        for doc in docs:
-            if doc.endswith(".pdf"):
-                auto_ingest_new_document(doc)
-                loader = PyPDFLoader(doc)
-                chunks = loader.load()  # returns list of Document objects with metadata
-                loaded_docs.extend(chunks)
-            else:
-                # wrap plain text in Document object
-                loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
-    else:
-        for doc in docs:
-            if isinstance(doc, str):
-                loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
-            else:
-                loaded_docs.append(doc)
+        state: DocuMindState = {
+            "question": question,
+            "docs": loaded_docs,
+            "agent_outputs": []
+        }
 
-    state: DocuMindState = {
-        "question": question,
-        "docs": loaded_docs,
-        "agent_outputs": []
-    }
-
-    result = app.invoke(state)
-    return result
+        result = app.invoke(state)
+        return result
+    except Exception as e:
+        print(f"[Error] Pipeline execution failed: {e}")
+        return {"error": str(e)}

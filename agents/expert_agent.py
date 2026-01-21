@@ -32,18 +32,22 @@ Return:
 
 def expert_analysis(context: str, question: str) -> str:
 
-    llm = ChatOpenAI(
-        model="gpt-4",
-        temperature=0.2
-    )
+    try:
+        llm = ChatOpenAI(
+            model="gpt-4",
+            temperature=0.2
+        )
 
-    chain = expert_prompt | llm 
+        chain = expert_prompt | llm 
 
-    response = chain.invoke(
-        {
-            "context": context,
-            "question": question
-        }
-    )
+        response = chain.invoke(
+            {
+                "context": context,
+                "question": question
+            }
+        )
 
-    return str(response.content)
+        return str(response.content)
+    except Exception as e:
+        print(f"Error in expert_analysis: {e}")
+        return "An error occurred while processing the expert analysis."
