@@ -2,10 +2,10 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-from pinecone import Pinecone
 from dotenv import load_dotenv
 load_dotenv()
 import os
+# See: notes.txt
 
 def ingest_document(pdf_path: str):
     """
@@ -20,6 +20,10 @@ def ingest_document(pdf_path: str):
     )
 
     chunks = splitter.split_documents(documents)
+
+    for i,chunk in enumerate(chunks): # see : file://./learn.md
+        chunk.metadata["source"] = pdf_path
+        chunk.metadata["chunk_id"] = i
 
     embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small"

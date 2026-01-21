@@ -35,10 +35,11 @@ Suggestions (if needed):
 def validate_answer(final_answer: str, evidence: str) -> dict:
 
     llm = ChatOpenAI(
-        temperature=0
+        model="gpt-4",
+        model_kwargs={"temperature": None}
     )
 
-    chain = validator_prompt | llm
+    chain = validator_prompt | llm # see : file://./learn.md
 
     response = chain.invoke(
         {

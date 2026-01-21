@@ -24,10 +24,11 @@ Return a structured summary with bullet points.
 def summarize_context(context: str) -> str:
 
     llm = ChatOpenAI(
-        temperature=0.3
+        model="gpt-4",
+        model_kwargs={"temperature": 0.3} 
     )
 
-    chain = summary_prompt | llm
+    chain = summary_prompt | llm # see : file://./learn.md
 
     response = chain.invoke(
         {"context": context}

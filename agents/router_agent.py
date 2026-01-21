@@ -29,14 +29,15 @@ def route_question(question: str) -> str:
     """
 
     llm = ChatOpenAI(
-        temperature=0  # deterministic decision
+        model="gpt-4",
+        model_kwargs={"temperature": 0.2} 
     )
 
-    chain = router_prompt | llm
+    chain = router_prompt | llm  #file://./learn.md
 
-    response = chain.invoke(
-        {"question": question}
-    )
+    response = chain.invoke(  #file://./learn.md
+        {"question": question}  
+    )                      
 
     route = response.content.strip().lower()
 

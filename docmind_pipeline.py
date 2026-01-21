@@ -1,10 +1,10 @@
-from agents.ingestion_agent import ingest_document
-from agents.retrieval_agent import retrieve_relevant_chunks
-from agents.router_agent import route_question
-from agents.summary_agent import summarize_context
-from agents.compare_agent import compare_documents
-from agents.synthesis_agent import synthesize_answer
-from agents.validator_agent import validate_answer
+from agents import ingest_document
+from agents import retrieve_relevant_chunks
+from agents import route_question
+from agents import summarize_context
+from agents import compare_documents
+from agents import synthesize_answer
+from agents import validate_answer
 
 def ask(question: str, docs: list[str]) -> dict:
     """

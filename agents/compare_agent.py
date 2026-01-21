@@ -23,13 +23,13 @@ compare_prompt = ChatPromptTemplate.from_template(
         Return the comparison in this structure:
 
         Similarities:
-        - ...
+         - ...
 
         Differences:
-        - Document A:
-        - ...
-        - Document B:
-        - ...
+        ~ Document A ~ :
+         - ...
+        ~ Document B ~ :
+         - ...
     """
 )
 
@@ -39,7 +39,7 @@ def compare_documents(context_a: str, context_b: str) -> str:
         temperature=0.3
     )
 
-    chain = compare_prompt | llm
+    chain = compare_prompt | llm # see : file://./learn.md
 
     response = chain.invoke(
         {
@@ -49,3 +49,6 @@ def compare_documents(context_a: str, context_b: str) -> str:
     )
 
     return str(response.content)
+
+# This response.content assign to compare_node through compare function
+# result = compare_documents(state["docs"][0], state["docs"][1])

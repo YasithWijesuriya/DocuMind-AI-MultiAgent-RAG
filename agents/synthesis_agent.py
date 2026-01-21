@@ -25,12 +25,13 @@ Return a final, well-structured answer.
 def synthesize_answer(agent_outputs: list[str]) -> str:
 
     llm = ChatOpenAI(
-        temperature=0.2
+        model="gpt-4",
+        model_kwargs={"temperature": 0.2} 
     )
 
     combined_text = "\n\n".join(agent_outputs)
 
-    chain = synthesis_prompt | llm
+    chain = synthesis_prompt | llm # see : file://./learn.md
 
     response = chain.invoke(
         {"agent_outputs": combined_text}
