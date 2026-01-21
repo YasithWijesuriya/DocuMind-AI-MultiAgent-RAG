@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-from docmind_pipeline import ask
+from pipelines.docmind_pipeline import ask
 from agents.ingestion_agent import ingest_document
 from dotenv import load_dotenv
 

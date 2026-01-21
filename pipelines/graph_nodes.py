@@ -36,7 +36,6 @@ def memory_write_node(state):
         "role": "user",
         "content": state["original_question"]
     })
-
     history.append({
         "role": "assistant",
         "content": state["final_answer"]
@@ -122,16 +121,31 @@ def expert_node(state):
 
 
 
+# def synthesis_node(state):
+#     output_with_sources = []
+#     for output in state["agent_outputs"]:
+#         output_with_sources.append(f"{output}\n\n[source: document_name]")  # Placeholder for actual source
+
+#     final_answer = synthesize_answer(output_with_sources)
+#     state["final_answer"] = final_answer
+#     return state
+        # synthesize the final answer from agent outputs
+        # update the state with the final answer
+
 def synthesis_node(state):
     output_with_sources = []
-    for output in state["agent_outputs"]:
-        output_with_sources.append(f"{output}\n\n[source: document_name]")  # Placeholder for actual source
+
+    # Each agent output may correspond to a doc
+    for i, output in enumerate(state["agent_outputs"]):
+        # assign real source if available
+        source = "Unknown"
+        if "docs" in state and i < len(state["docs"]):
+            source = getattr(state["docs"][i], "metadata", {}).get("source", "Unknown")
+        output_with_sources.append(f"{output}\n\n[source: {source}]")
 
     final_answer = synthesize_answer(output_with_sources)
     state["final_answer"] = final_answer
     return state
-        # synthesize the final answer from agent outputs
-        # update the state with the final answer
 
 
 def validator_node(state):

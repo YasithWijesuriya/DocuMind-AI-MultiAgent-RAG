@@ -12,6 +12,10 @@ Rules:
 - Do NOT add new information
 - Do NOT contradict the agent outputs
 - Remove duplication
+- Use ONLY the provided content
+- Do NOT infer dates, locations, or business types
+- If something is not explicitly stated, say "Not mentioned in the document"
+- Prefer general explanations over company-specific claims
 - Use clear structure and simple language
 - If something is uncertain, state it clearly
 - Add citations like [source: document_name]

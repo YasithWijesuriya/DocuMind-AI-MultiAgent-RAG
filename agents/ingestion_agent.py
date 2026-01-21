@@ -35,3 +35,11 @@ def ingest_document(pdf_path: str):
     )
 
     return vectorstore
+
+def auto_ingest_new_document(file_path: str):
+    """
+    New document එක automatically Pinecone vector store එකට insert කරන්න.
+    """
+    print(f"Auto-ingesting document: {file_path}")
+    ingest_document(file_path)
+    print("Ingestion complete")

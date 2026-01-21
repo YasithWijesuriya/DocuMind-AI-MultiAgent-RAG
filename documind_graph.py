@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph
-from graph_state import DocuMindState
-from graph_nodes import *
+from pipelines.graph_state import DocuMindState
+from pipelines.graph_nodes import *
 
 graph = StateGraph(DocuMindState)
 

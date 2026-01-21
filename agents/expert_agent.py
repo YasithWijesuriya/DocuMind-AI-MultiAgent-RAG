@@ -34,7 +34,7 @@ def expert_analysis(context: str, question: str) -> str:
 
     llm = ChatOpenAI(
         model="gpt-4",
-        model_kwargs={"temperature": 0.2} 
+        temperature=0.2
     )
 
     chain = expert_prompt | llm 

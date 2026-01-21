@@ -3,7 +3,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
 
-def retrieve_relevant_chunks(query: str, top_k: int = 5):
+def retrieve_relevant_chunks(query: str, top_k: int = 3):
     """
     User question එකට Pinecone වලින් most relevant chunks retrieve කරන function එක
     """
