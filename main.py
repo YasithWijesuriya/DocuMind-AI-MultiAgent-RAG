@@ -86,9 +86,9 @@
 
 # if __name__ == "__main__":
 #     outputs = [
-#         "Agent A (Database): The dog's name is 'Buster.' He is a 5-year-old Golden Retriever. Owners live on Maple Street.",
-#         "Agent B (Witness): A large yellow dog was seen running through the park without a collar around 2:00 PM.",
-#         "Agent C (Description): The dog has a distinctive white patch on its front left paw. It appeared friendly but scared."
+#     "The dog's name is 'Buster', a 5-year-old Golden Retriever. Owners live on Maple Street. [source: database]",
+#     "A large yellow dog was seen running through the park without a collar around 2:00 PM. [source: witness_statement]",
+#     "The dog has a distinctive white patch on its front left paw and appeared friendly but scared. [source: physical_description]"
 #     ]
 
 #     final_answer = synthesize_answer(outputs)

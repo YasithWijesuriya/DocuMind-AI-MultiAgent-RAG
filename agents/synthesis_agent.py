@@ -14,6 +14,8 @@ Rules:
 - Remove duplication
 - Use clear structure and simple language
 - If something is uncertain, state it clearly
+- Add citations like [source: document_name]
+- Do NOT hallucinate sources
 
 Agent outputs:
 {agent_outputs}

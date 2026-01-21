@@ -1,22 +1,25 @@
-# 1. Imports
 from langgraph.graph import StateGraph
 from graph_state import DocuMindState
 from graph_nodes import *
 
-# 2. Create Graph
 graph = StateGraph(DocuMindState)
 
-# 3. Add Nodes
+graph.add_node("memory_read", memory_read_node)
+graph.add_node("rewrite", rewrite_node)
 graph.add_node("router", router_node)
 graph.add_node("retrieval", retrieval_node)
 graph.add_node("summary", summary_node)
 graph.add_node("compare", compare_node)
+graph.add_node("expert", expert_node)
 graph.add_node("synthesis", synthesis_node)
 graph.add_node("validator", validator_node)
+graph.add_node("memory_write", memory_write_node)
 
-# 4. Set Entry Point
-graph.set_entry_point("router")
 
+graph.set_entry_point("memory_read")
+
+graph.add_edge("memory_read", "rewrite")
+graph.add_edge("rewrite", "router")
 
 def route_decision(state):
     return state["route"]
@@ -28,15 +31,15 @@ graph.add_conditional_edges(
         "retrieval": "retrieval",
         "summary": "summary",
         "compare": "compare",
-        "expert": "summary"  # temporary
+        "expert": "expert"  
     }
 )
 
-# 6. Normal Edges
 graph.add_edge("retrieval", "synthesis")
 graph.add_edge("summary", "synthesis")
 graph.add_edge("compare", "synthesis")
+graph.add_edge("expert", "synthesis")
 graph.add_edge("synthesis", "validator")
+graph.add_edge("validator", "memory_write")
 
-# 7. Compile Graph (LAST STEP)
 app = graph.compile()
