@@ -1,3 +1,4 @@
+from config import OPENAI_MODEL, OPENAI_TEMPERATURE
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -35,8 +36,8 @@ Suggestions (if needed):
 def validate_answer(final_answer: str, evidence: str) -> dict:
 
     llm = ChatOpenAI(
-        model="gpt-4",
-        model_kwargs={"temperature": None}
+        model=OPENAI_MODEL,
+        model_kwargs={"temperature": OPENAI_TEMPERATURE}
     )
 
     chain = validator_prompt | llm # see : file://./learn.md

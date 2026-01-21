@@ -1,8 +1,7 @@
-import os
+from config import PINECONE_API_KEY, PINECONE_INDEX_NAME
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-from dotenv import load_dotenv
-load_dotenv()
+
 
 def retrieve_relevant_chunks(query: str, top_k: int = 5):
     """
@@ -13,8 +12,8 @@ def retrieve_relevant_chunks(query: str, top_k: int = 5):
     )
 
     vectorstore = PineconeVectorStore(
-        index_name=os.getenv("PINECONE_INDEX_NAME"),
-        pinecone_api_key=os.getenv("PINECONE_API_KEY"),
+        index_name=PINECONE_INDEX_NAME,
+        pinecone_api_key=PINECONE_API_KEY,
         embedding=embeddings
     )
 

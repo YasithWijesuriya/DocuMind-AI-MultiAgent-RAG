@@ -1,11 +1,9 @@
+from config import (CHUNK_SIZE,CHUNK_OVERLAP,PINECONE_INDEX_NAME,PINECONE_API_KEY)
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
-from dotenv import load_dotenv
-load_dotenv()
-import os
-# See: notes.txt
+
 
 def ingest_document(pdf_path: str):
     """
@@ -15,8 +13,8 @@ def ingest_document(pdf_path: str):
     documents = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
     )
 
     chunks = splitter.split_documents(documents)
@@ -32,8 +30,8 @@ def ingest_document(pdf_path: str):
     vectorstore = PineconeVectorStore.from_documents(
         documents=chunks,
         embedding=embeddings,
-        index_name=os.getenv("PINECONE_INDEX_NAME"),
-        pinecone_api_key=os.getenv("PINECONE_API_KEY")
+        index_name=PINECONE_INDEX_NAME,
+        pinecone_api_key=PINECONE_API_KEY
     )
 
     return vectorstore
