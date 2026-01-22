@@ -37,7 +37,7 @@ def validate_answer(final_answer: str, evidence: str) -> dict:
 
     llm = ChatOpenAI(
         model=OPENAI_MODEL,
-        model_kwargs={"temperature": OPENAI_TEMPERATURE}
+        temperature=OPENAI_TEMPERATURE
     )
 
     chain = validator_prompt | llm # see : file://./learn.md
@@ -51,7 +51,7 @@ def validate_answer(final_answer: str, evidence: str) -> dict:
 
     content = str(response.content)
 
-    status = "PASS" if "PASS" in content else "FAIL"
+    status = content.split("Validation Status:")[1].strip().split()[0]
 
     return {
         "status": status,

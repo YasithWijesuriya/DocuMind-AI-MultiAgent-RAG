@@ -8,6 +8,18 @@ from agents import expert_analysis
 from agents import rewrite_question
 from langgraph.store.memory import InMemoryStore
 
+def truncate_text(text: str, max_chars: int):
+    """
+    Forcefully cut text to a maximum number of characters
+    """
+    if not text:
+        return ""
+
+    if len(text) > max_chars:
+        return text[:max_chars]
+
+    return text
+
 
 store = InMemoryStore()
 
@@ -38,11 +50,11 @@ def memory_write_node(state):
 
         history.append({
             "role": "user",
-            "content": state["original_question"]
+            "content": state.get("original_question", "")
         })
         history.append({
             "role": "assistant",
-            "content": state["final_answer"]
+            "content": state.get("final_answer", "")
         })
 
         store.put(
@@ -54,119 +66,242 @@ def memory_write_node(state):
         print(f"[Error] Memory write failed: {e}")
     return state
  
-def rewrite_node(state):
-    state["original_question"] = state["question"]
-    history_text = "\n".join(
-        f"{m['role']}: {m['content']}"
-        for m in state.get("conversation_history", [])
-    )
-    rewritten = rewrite_question(
-        history_text=history_text,
-        question=state["question"]
-    )
-    state["question"] = rewritten
-    return state
 
+def rewrite_node(state):
+    try:
+        state["original_question"] = state.get("question", "")
+
+        history_text = "\n".join(
+            f"{m['role']}: {m['content']}"
+            for m in state.get("conversation_history", [])
+        )
+
+        rewritten = rewrite_question(
+            history_text=history_text,
+            question=state.get("question", "")
+        )
+        state["rewritten_question"] = rewritten
+        
+        if "question" in state:
+            del state["question"]
+
+    except Exception as e:
+        print(f"[Error] Rewrite node failed: {e}")
+        state["rewritten_question"] = state.get("original_question", "")
+        if "question" in state:
+            del state["question"]
+            
+    return state
 
 
 def router_node(state):
     try:
-        question = state.get("question", "")
-        if not question:
-            raise ValueError("No question found in state")
-        route = route_question(question)
+        q = state.get("rewritten_question", "")
+        if not q:
+            print("[Warning] Empty rewritten question, defaulting to retrieval")
+            state["route"] = "retrieval"
+            return state
+            
+        route = route_question(q)
         state["route"] = route
     except Exception as e:
         print(f"[Error] Router node failed: {e}")
-        state["route"] = "retrieval"  # default fallback
+        state["route"] = "retrieval"
     return state
-
-
-            # state["question"] → question string එක
-            # ඒක route_question() ට pass කරනවා
-            # route_question() → "summary" return කරනවා
-            # ඒ value එක route variable එකට assign වෙනවා
-            # state dictionary එක ඇතුළට දානවා:
-
 
 
 def retrieval_node(state):
-    chunks = retrieve_relevant_chunks(
-        query=state["question"],  # user question
-        top_k=5
-    )
+    """
+    Main processing node - retrieves chunks from uploaded documents and processes based on route
+    """
+    print(">>> ENTERED retrieval_node")
 
-    combined_chunks = " ".join([c.page_content for c in chunks]) #file://./agents/learn.md
-    state["agent_outputs"] = [combined_chunks]
-    return state
-        # retrieve relevant chunks based on the question
-        # update the state with agent outputs
+    query = state.get("rewritten_question", "")
+    route = state.get("route", "retrieval")
+    docs = state.get("docs", [])
+    
+    if not query:
+        print("[Warning] Empty query in retrieval node")
+        state["agent_outputs"] = ["No query provided."]
+        state["final_answer"] = "No query provided."
+        return state
+
+    try:
+        doc_namespaces = set()
+        for doc in docs:
+            if hasattr(doc, 'metadata') and 'doc_id' in doc.metadata:
+                doc_namespaces.add(doc.metadata['doc_id'])
         
+        print(f"[INFO] Document namespaces to search: {doc_namespaces}")
+        
+        # Step 1: Retrieve relevant chunks from uploaded documents ONLY
+        all_chunks = []
+        
+        if doc_namespaces:
+            # Search within specific document namespaces
+            for namespace in doc_namespaces:
+                print(f">>> Retrieving chunks from namespace: {namespace}")
+                chunks = retrieve_relevant_chunks(query=query, top_k=5, namespace=namespace)
+                all_chunks.extend(chunks)
+        else:
+            # Fallback: search all namespaces
+            print(">>> No document namespaces found, searching all documents")
+            chunks = retrieve_relevant_chunks(query=query, top_k=5)
+            all_chunks.extend(chunks)
 
+        if not all_chunks:
+            state["agent_outputs"] = ["No relevant context found in the uploaded documents."]
+            state["final_answer"] = "I could not find relevant information in the uploaded documents to answer your question."
+            return state
 
-def summary_node(state):
-    outputs = [summarize_context(doc) for doc in state["docs"]] #where is doc came from?: file://./agents/learn.md
-    state["agent_outputs"] = outputs
+        texts = []
+        for c in all_chunks:
+            source = c.metadata.get('source', 'unknown')
+            if '\\' in source:
+                source = source.split('\\')[-1]
+            elif '/' in source:
+                source = source.split('/')[-1]
+                
+            texts.append(
+                f"{c.page_content}\n[source: {source}]"
+            )
+
+        retrieved_text = truncate_text("\n\n".join(texts), 6000)
+        print(f">>> Retrieved {len(all_chunks)} chunks total")
+
+        # Step 2: Process based on route
+        print(f">>> Processing with route: {route}")
+        
+        if route == "summary":
+            print(">>> Generating summary...")
+            result = summarize_context(retrieved_text)
+            state["agent_outputs"] = [result]
+            state["final_answer"] = result
+            
+        elif route == "expert":
+            print(">>> Generating expert analysis...")
+            result = expert_analysis(
+                context=retrieved_text,
+                question=query
+            )
+            state["agent_outputs"] = [result]
+            state["final_answer"] = result
+            
+        elif route == "retrieval":
+            print(">>> Processing retrieval...")
+            # For retrieval, still synthesize for clarity
+            result = synthesize_answer([retrieved_text])
+            state["agent_outputs"] = [result]
+            state["final_answer"] = result
+            
+        else:  # Default
+            result = synthesize_answer([retrieved_text])
+            state["agent_outputs"] = [result]
+            state["final_answer"] = result
+
+    except Exception as e:
+        print(f"[Error] Processing node failed: {e}")
+        import traceback
+        traceback.print_exc()
+        state["agent_outputs"] = [f"Error during processing: {str(e)}"]
+        state["final_answer"] = f"An error occurred: {str(e)}"
+        
     return state
-        # for each document, summarize the context
-        # update the state with agent outputs
-
 
 
 def compare_node(state):
-    if len(state["docs"]) >= 2:
-        result = compare_documents(state["docs"][0], state["docs"][1])
-        state["agent_outputs"] = [result]  #?[result] what is the meaning of this brackets? this is used for creating a list with single element and no get string error
+    """
+    Special node for comparing documents
+    """
+    print(">>> ENTERED compare_node")
+    docs = state.get("docs", [])
+
+    if len(docs) >= 2:
+        try:
+            doc_a = truncate_text(docs[0].page_content if hasattr(docs[0], 'page_content') else str(docs[0]), 3000)
+            doc_b = truncate_text(docs[1].page_content if hasattr(docs[1], 'page_content') else str(docs[1]), 3000)
+            
+            result = compare_documents(doc_a, doc_b)
+            state["agent_outputs"] = [result]
+        except Exception as e:
+            print(f"[Error] Compare node failed: {e}")
+            state["agent_outputs"] = ["Error comparing documents."]
     else:
-        state["agent_outputs"] = ["Not enough documents"]
-    return state
-        # if at least 2 documents, compare the first two
-        # update the state with agent outputs
+        state["agent_outputs"] = ["Not enough documents to compare"]
 
-def expert_node(state):
-    combined_docs = " ".join(state["docs"])
-
-    result = expert_analysis(
-        context=combined_docs,
-        question=state["question"]
-    )
-    state["agent_outputs"] = [result]
     return state
 
-
-
-# def synthesis_node(state):
-#     output_with_sources = []
-#     for output in state["agent_outputs"]:
-#         output_with_sources.append(f"{output}\n\n[source: document_name]")  # Placeholder for actual source
-
-#     final_answer = synthesize_answer(output_with_sources)
-#     state["final_answer"] = final_answer
-#     return state
-        # synthesize the final answer from agent outputs
-        # update the state with the final answer
 
 def synthesis_node(state):
-    output_with_sources = []
+    """
+    Synthesis node - final answer already set by retrieval_node for most routes
+    This node only applies synthesis if needed for compare route
+    """
+    print(">>> ENTERED synthesis_node")
+    
+    route = state.get("route", "retrieval")
+    final_answer = state.get("final_answer")
+    
+    #  If final_answer already set (from retrieval/summary/expert), skip synthesis
+    if final_answer and route != "compare":
+        print(f">>> Final answer already set, skipping synthesis")
+        return state
+    
+    outputs = state.get("agent_outputs", [])
 
-    # Each agent output may correspond to a doc
-    for i, output in enumerate(state["agent_outputs"]):
-        # assign real source if available
-        source = "Unknown"
-        if "docs" in state and i < len(state["docs"]):
-            source = getattr(state["docs"][i], "metadata", {}).get("source", "Unknown")
-        output_with_sources.append(f"{output}\n\n[source: {source}]")
+    if not outputs:
+        state["final_answer"] = "No agent outputs available to synthesize."
+        return state
 
-    final_answer = synthesize_answer(output_with_sources)
-    state["final_answer"] = final_answer
+    #  Initialize safe_outputs before try block
+    safe_outputs = []
+    
+    try:
+        safe_outputs = [truncate_text(o, max_chars=4000) for o in outputs if o]
+
+        if not safe_outputs:
+            state["final_answer"] = "No valid content to synthesize."
+            return state
+
+        final_answer = synthesize_answer(safe_outputs)
+        state["final_answer"] = final_answer
+        
+    except Exception as e:
+        print(f"[Error] Synthesis node failed: {e}")
+        import traceback
+        traceback.print_exc()
+        #  Now safe_outputs is always defined
+        state["final_answer"] = safe_outputs[0] if safe_outputs else "Error generating answer."
+        
     return state
 
 
 def validator_node(state):
-    evidence = "\n\n".join(state["agent_outputs"])
-    result = validate_answer(state["final_answer"], evidence)
-    state["validation"] = result
+    """
+    Validate the final answer against evidence
+    """
+    print(">>> ENTERED validator_node")
+    outputs = state.get("agent_outputs", [])
+
+    if not outputs:
+        state["validation"] = {"status": "FAIL", "report": "No evidence provided."}
+        return state
+
+    try:
+        evidence = "\n\n".join([o for o in outputs if o])
+        final_answer = state.get("final_answer", "")
+        
+        if not final_answer:
+            state["validation"] = {"status": "FAIL", "report": "No final answer to validate."}
+            return state
+        
+        result = validate_answer(final_answer, evidence)
+        state["validation"] = result
+        
+    except Exception as e:
+        print(f"[Error] Validator node failed: {e}")
+        import traceback
+        traceback.print_exc()
+        state["validation"] = {"status": "ERROR", "report": str(e)}
+        
     return state
-        # concatenate all agent outputs as evidence
-        # validate the final answer against the evidence
-        # update the state with the validation result

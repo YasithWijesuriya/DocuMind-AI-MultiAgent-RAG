@@ -6,6 +6,7 @@ from config.settings import(
     OPENAI_MODEL,
     OPENAI_TEMPERATURE,
     MAX_RETRIEVAL_CHUNKS,
+    PINECONE_ENVIRONMENT
 
 )
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "OPENAI_MODEL",
     "OPENAI_TEMPERATURE",
     "MAX_RETRIEVAL_CHUNKS",
+    "PINECONE_ENVIRONMENT"
 ]

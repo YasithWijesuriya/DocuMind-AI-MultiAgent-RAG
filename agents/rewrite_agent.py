@@ -18,8 +18,8 @@ rewrite_prompt = ChatPromptTemplate.from_template(
 """)
 
 llm = ChatOpenAI(
-        model="gpt-4",
-        model_kwargs={"temperature": 0.2} 
+        model="gpt-4o-mini",
+        temperature=0.2
     )
 
 chain = rewrite_prompt | llm

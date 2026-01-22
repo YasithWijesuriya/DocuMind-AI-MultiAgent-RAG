@@ -29,8 +29,8 @@ def route_question(question: str) -> str:
     """
 
     llm = ChatOpenAI(
-        model="gpt-4",
-        model_kwargs={"temperature": 0.2} 
+        model="gpt-4o-mini",
+        temperature=0.2
     )
 
     chain = router_prompt | llm  #file://./learn.md

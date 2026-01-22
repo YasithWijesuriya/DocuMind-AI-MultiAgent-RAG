@@ -36,8 +36,8 @@ compare_prompt = ChatPromptTemplate.from_template(
 def compare_documents(context_a: str, context_b: str) -> str:
 
     llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0.3
+        model="gpt-4o-mini",
+        temperature=0.3
 )
 
     chain = compare_prompt | llm # see : file://./learn.md

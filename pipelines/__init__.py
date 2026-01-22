@@ -19,5 +19,5 @@ __all__ = [
     "compare_documents",
     "synthesize_answer",
     "validate_answer",
-    "expert_analysis"
+    "expert_analysis",
 ]
