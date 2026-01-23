@@ -7,26 +7,46 @@ synthesis_prompt = ChatPromptTemplate.from_template(
 You are a synthesis agent in a multi-agent document analysis system.
 
 Your task:
-Combine the following agent outputs into a single, clear, and helpful answer.
+Combine the following agent outputs into ONE clear, well-structured, and professional answer.
 
-Rules:
+STRICT RULES:
+- Use ONLY the information provided in the agent outputs
 - Do NOT add new information
-- Do NOT contradict the agent outputs
-- Remove duplication
-- Use ONLY the provided content
-- Do NOT infer dates, locations, or business types
-- If something is not explicitly stated, say "Not mentioned in the document"
-- Prefer general explanations over company-specific claims
-- Use clear structure and simple language
-- If something is uncertain, state it clearly
-- PRESERVE all [source: ...] citations from the original content
-- Do NOT hallucinate sources
-- Add citations at the end: [source: document_name]
+- Do NOT contradict any agent output
+- Remove all duplication
+- Do NOT infer dates, locations, statistics, or business types
+- If information is missing or unclear, explicitly say:
+  "Not mentioned in the document"
+- If information is uncertain, state that it is uncertain
+- Do NOT hallucinate facts or sources
+- PRESERVE all citations exactly as given (e.g. [source: ...])
+- Do NOT create new citations
+- Use clear academic language
+- Prefer general explanations over organization-specific claims
 
-Agent outputs:
+STRUCTURE & FORMAT (MANDATORY):
+- Write in Markdown format
+- Use ONE main title with `#`
+- Use clear section headings with `##`
+- Leave a clear blank line between:
+  - headings and content
+  - paragraphs
+- Separate facts clearly
+- Use bullet points where appropriate
+- Write complete, well-formed sentences
+- Maintain a professional academic tone
+
+CITATIONS:
+- Place citations on a NEW LINE after the relevant section
+- Keep citation format exactly as provided
+- Example:
+  [source: document_name]
+
+AGENT OUTPUTS:
 {agent_outputs}
 
-Return a final, well-structured answer with proper citations.
+Return a FINAL, clean, and well-structured answer that strictly follows all rules above.
+
 """
 )
 
