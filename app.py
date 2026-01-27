@@ -6,9 +6,11 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
-
+from fastapi.responses import FileResponse
 
 app = FastAPI()
+
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -127,3 +129,9 @@ async def ask_api(
 async def health():
     """Health check endpoint"""
     return {"status": "ok", "service": "DocuMind"}
+
+@app.get("/favicon.ico")
+async def favicon():
+    if os.path.exists("static/favicon.ico"):
+        return FileResponse("static/favicon.ico")
+    return {}  # empty JSON prevent 500
