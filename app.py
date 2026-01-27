@@ -5,14 +5,11 @@ import asyncio
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pipelines.docmind_pipeline import ask, get_route_type
-
-# Import your SQLiteStore & memory nodes
 from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
+
 
 app = FastAPI()
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -25,7 +22,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize SQLiteStore
 store = SQLiteStore("documind_memory.db")
 
 
@@ -38,6 +34,7 @@ def file_hash(path: str) -> str:
 
 
 async def stream_response(question: str, file_paths: list[str], thread_id: str):
+    from pipelines.docmind_pipeline import ask, get_route_type
     try:
         state = {"thread_id": thread_id}
         state = memory_read_node(state)
@@ -49,12 +46,13 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
         route = get_route_type(rewritten_question)
         auto_ingest = route != "summary"
 
-        # Run blocking 'ask' in executor
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: ask(question=rewritten_question, docs=file_paths, auto_ingest=auto_ingest)
+        result = await asyncio.to_thread(
+            ask,
+            question=rewritten_question,
+            docs=file_paths,
+            auto_ingest=auto_ingest
         )
+
 
         state["original_question"] = question
         state["final_answer"] = result.get("final_answer", "")
@@ -97,7 +95,8 @@ async def ask_api(
     """
     Main API endpoint - returns streaming response
     """
-    os.makedirs("temp", exist_ok=True)
+    os.makedirs("/tmp", exist_ok=True)
+
 
     file_paths = []
     thread_ids = []
@@ -105,7 +104,7 @@ async def ask_api(
     # Save files & generate thread_id per file
     for f in files:
         filename = f.filename or "uploaded.pdf"
-        path = os.path.join("temp", filename)
+        path = os.path.join("/tmp", filename)
 
         with open(path, "wb") as out:
             content = await f.read()
@@ -116,7 +115,6 @@ async def ask_api(
         thread_ids.append(tid)
         print(f"[INFO] File saved: {path}, Thread ID: {tid}")
 
-    # Combine thread_ids for multi-PDF conversations
     combined_thread_id = "_".join(thread_ids)
 
     return StreamingResponse(

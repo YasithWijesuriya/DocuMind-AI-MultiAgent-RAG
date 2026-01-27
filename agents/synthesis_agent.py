@@ -59,8 +59,6 @@ Return a FINAL answer strictly following this format.
 """
 )
 
-
-
 def extract_sources(text: str) -> list:
     """
     Extract [source: ...] citations from text

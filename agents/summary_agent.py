@@ -49,9 +49,6 @@ Return ONLY the formatted summary above. Do not include explanations or extra te
 """
 )
 
-
-
-
 def extract_sources(text: str) -> list:
     """
     Extract [source: ...] citations from text
