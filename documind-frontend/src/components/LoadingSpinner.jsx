@@ -2,30 +2,25 @@ import React from 'react';
 
 export default function LoadingSpinner({ message = 'Processing...' }) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <div className="relative w-6 h-6">
-        <svg
-          className="animate-spin h-6 w-6 text-blue-600"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          />
-        </svg>
+    <div className="flex items-center justify-center gap-4">
+      <div className="relative w-8 h-8">
+        {/* Outer rotating ring */}
+        <div className="absolute inset-0 border-2 border-transparent border-t-emerald-400 border-r-cyan-400 rounded-full animate-spin" />
+        
+        {/* Inner rotating ring (reverse) */}
+        <div className="absolute inset-2 border-2 border-transparent border-b-emerald-400 border-l-cyan-400 rounded-full animate-spin" style={{animationDirection: 'reverse', animationDuration: '1.5s'}} />
+        
+        {/* Center dot */}
+        <div className="absolute inset-3 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full animate-pulse" />
       </div>
-      <span className="text-sm font-medium text-gray-700">{message}</span>
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold text-emerald-300">{message}</span>
+        <div className="flex gap-1">
+          <span className="w-1 h-1 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '0s'}} />
+          <span className="w-1 h-1 bg-cyan-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}} />
+          <span className="w-1 h-1 bg-emerald-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}} />
+        </div>
+      </div>
     </div>
   );
 }

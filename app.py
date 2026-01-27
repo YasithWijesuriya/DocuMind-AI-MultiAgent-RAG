@@ -1,14 +1,18 @@
 import os
 import json
+import hashlib
+import asyncio
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pipelines.docmind_pipeline import ask,get_route_type
-import asyncio
-import hashlib
+from pipelines.docmind_pipeline import ask, get_route_type
+
+# Import your SQLiteStore & memory nodes
+from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
 
 app = FastAPI()
 
+# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -21,51 +25,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize SQLiteStore
+store = SQLiteStore("documind_memory.db")
+
 
 def file_hash(path: str) -> str:
-    """Generate file hash"""
+    """Generate file hash (thread_id) based on file content"""
     hasher = hashlib.sha256()
     with open(path, "rb") as f:
         hasher.update(f.read())
     return hasher.hexdigest()
 
 
-async def stream_response(question: str, file_paths: list[str]):
-    """
-    Stream the response word by word for real-time effect
-    """
+async def stream_response(question: str, file_paths: list[str], thread_id: str):
     try:
-        route = get_route_type(question)
-        print(f"[INFO] Route: {route}")
-        
+        state = {"thread_id": thread_id}
+        state = memory_read_node(state)
+
+        state["question"] = question
+        state = rewrite_node(state)
+        rewritten_question = state.get("rewritten_question", question)
+
+        route = get_route_type(rewritten_question)
         auto_ingest = route != "summary"
-        print(f"[INFO] Auto-ingest: {auto_ingest}")
-        
-        # Run pipeline
-        result = ask(
-            question=question,
-            docs=file_paths,
-            auto_ingest=auto_ingest
+
+        # Run blocking 'ask' in executor
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: ask(question=rewritten_question, docs=file_paths, auto_ingest=auto_ingest)
         )
 
-        final_answer = result.get("final_answer", "")
-        
+        state["original_question"] = question
+        state["final_answer"] = result.get("final_answer", "")
+        state = memory_write_node(state)
+
+        final_answer = state.get("final_answer", "")
+
         if final_answer:
             words = final_answer.split()
             for i, word in enumerate(words):
-                # Send word with space
                 chunk = word + " "
-                
                 yield json.dumps({
                     "type": "text",
                     "content": chunk,
                     "progress": int((i / len(words)) * 100)
                 }) + "\n"
-                
-                # Add small delay for typing effect
                 await asyncio.sleep(0.02)
-        
-        # Send final result
+
         yield json.dumps({
             "type": "complete",
             "content": final_answer,
@@ -73,14 +80,13 @@ async def stream_response(question: str, file_paths: list[str]):
         }) + "\n"
 
     except Exception as e:
-        print(f"[Error] Stream error: {e}")
         import traceback
         traceback.print_exc()
-        
         yield json.dumps({
             "type": "error",
             "content": str(e)
         }) + "\n"
+
 
 
 @app.post("/ask")
@@ -90,27 +96,31 @@ async def ask_api(
 ):
     """
     Main API endpoint - returns streaming response
-    
-    Client receives chunks of data as they arrive
     """
     os.makedirs("temp", exist_ok=True)
 
     file_paths = []
+    thread_ids = []
 
-    # Save files
+    # Save files & generate thread_id per file
     for f in files:
         filename = f.filename or "uploaded.pdf"
         path = os.path.join("temp", filename)
-        
+
         with open(path, "wb") as out:
             content = await f.read()
             out.write(content)
-        
+
         file_paths.append(path)
-        print(f"[INFO] File saved: {path}")
+        tid = file_hash(path)  # generate thread_id from file content
+        thread_ids.append(tid)
+        print(f"[INFO] File saved: {path}, Thread ID: {tid}")
+
+    # Combine thread_ids for multi-PDF conversations
+    combined_thread_id = "_".join(thread_ids)
 
     return StreamingResponse(
-        stream_response(question, file_paths),
+        stream_response(question, file_paths, combined_thread_id),
         media_type="application/x-ndjson"
     )
 

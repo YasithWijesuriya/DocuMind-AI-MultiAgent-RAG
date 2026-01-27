@@ -15,25 +15,13 @@ export default function AskForm() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setFiles(e.target.files);
-      const names = Array.from(e.target.files).map((f) => f.name).join(", ");
-      setFileNames(names);
-    } else {
-      setFiles([]);
-      setFileNames("");
+      setFileNames(Array.from(e.target.files).map(f => f.name).join(", "));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!question.trim()) {
-      alert("Please enter a question");
-      return;
-    }
-    if (files.length === 0) {
-      alert("Please upload at least one PDF file");
-      return;
-    }
+    if (!question.trim() || files.length === 0) return;
 
     setLoading(true);
     setResponse("");
@@ -41,7 +29,7 @@ export default function AskForm() {
 
     const formData = new FormData();
     formData.append("question", question);
-    Array.from(files).forEach((file) => formData.append("files", file));
+    Array.from(files).forEach(file => formData.append("files", file));
 
     try {
       const res = await fetch("http://localhost:8000/ask", {
@@ -49,11 +37,9 @@ export default function AskForm() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let fullResponse = "";
+      let full = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -63,84 +49,82 @@ export default function AskForm() {
         const lines = chunk.split("\n").filter(Boolean);
 
         for (const line of lines) {
-          try {
-            const data = JSON.parse(line);
-            if (data.type === "text") {
-              setStreamingText((prev) => prev + data.content);
-              fullResponse += data.content;
-            } else if (data.type === "complete") {
-              fullResponse = data.content;
-            } else if (data.type === "error") {
-              throw new Error(data.content);
-            }
-          } catch (err) {
-            console.error("Stream parse error:", err);
+          const data = JSON.parse(line);
+          if (data.type === "text") {
+            setStreamingText(prev => prev + data.content);
+            full += data.content;
+          }
+          if (data.type === "complete") {
+            full = data.content;
           }
         }
       }
-
-      setResponse(fullResponse || streamingText);
+      setResponse(full);
     } catch (err) {
-      setResponse(`Error: ${err.message}`);
+      setResponse("Error occurred");
     }
-
     setLoading(false);
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(response);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { 
+      e.preventDefault(); 
+      handleSubmit(e); 
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      {/* Form */}
-      <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Question Input */}
-          <div>
-            <label className="block text-base font-semibold text-gray-900 mb-2">
-              Your Question
-            </label>
-            <textarea
-              placeholder="Ask anything about your documents..."
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500 transition"
-              rows={5}
-            />
-            <p className="text-xs text-gray-500 mt-1">{question.length} characters</p>
-          </div>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      {/* LEFT PANEL */}
+      <div className="bg-gray-800 rounded-2xl shadow-lg p-6 space-y-6 animate-fade-in">
+        <FileUploadZone
+          onFileChange={handleFileChange}
+          disabled={loading}
+          fileCount={files.length}
+          fileNames={fileNames}
+        />
 
-          {/* File Upload */}
-          <FileUploadZone
-            onFileChange={handleFileChange}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <textarea
+            placeholder="Ask questions from your documents..."
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={handleKeyDown}
             disabled={loading}
-            fileCount={files.length}
-            fileNames={fileNames}
+            rows={6}
+            className="w-full rounded-xl border border-gray-600 bg-gray-700 px-4 py-3
+                      focus:ring-2 focus:ring-gray-400 outline-none
+                      transition resize-none text-gray-100 placeholder-gray-400"
           />
 
-          {/* Submit Button */}
           <button
-            type="submit"
             disabled={loading || !question.trim() || files.length === 0}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg transition duration-200 ease-in-out"
+            className={`w-full flex justify-center items-center gap-2 text-gray-100 font-semibold py-3 rounded-xl transition-all duration-300
+              ${!question.trim() || files.length === 0
+                ? "bg-gray-700 cursor-not-allowed text-gray-400"
+                : "bg-gray-700 text-green-400 hover:bg-gray-600 hover:scale-[1.02]"
+              }`}
           >
-            {loading ? <LoadingSpinner message="Processing..." /> : "Ask"}
+            {loading ? <LoadingSpinner /> : "Ask from DOCU-MIND"}
           </button>
         </form>
       </div>
 
-      {/* Response Panel */}
-      <ResponsePanel
-        loading={loading}
-        streamingText={streamingText}
-        response={response}
-        copied={copied}
-        onCopy={handleCopy}
-      />
+      {/* RIGHT PANEL */}
+      <div className="lg:sticky lg:top-28 h-fit">
+        <ResponsePanel
+          loading={loading}
+          streamingText={streamingText}
+          response={response}
+          copied={copied}
+          onCopy={() => {
+            navigator.clipboard.writeText(response);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+        />
+      </div>
     </div>
+
   );
 }

@@ -2,22 +2,31 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
 rewrite_prompt = ChatPromptTemplate.from_template(
-    """
-    You are a question rewriting agent.
+    """You are a professional question rewriting agent for a document-based Q&A system.
 
-    Rewrite the user's question using conversation history
-    so it is clear and self-contained.
+Your goal is to rewrite the user's latest question so that it is:
+1. Fully self-contained and understandable without prior context
+2. Clear, precise, and unambiguous
+3. Suitable for semantic search over documents
 
-    Conversation history:
-    {history}
+Rules:
+- Only use the conversation history if necessary to resolve pronouns or references (e.g., "it", "this", "that", "they").
+- If the question is already clear and standalone, return it unchanged.
+- Do NOT introduce new information or content.
+- Do NOT attempt to answer the question.
+- Do NOT include explanations, reasoning, or extra text.
+- Preserve the user's intent and meaning exactly.
 
-    User question:
-    {question}
+Conversation history (for reference if needed):
+{history}
 
-    Return only the rewritten question.
-""")
+User's latest question:
+{question}
 
-llm = ChatOpenAI(
+Rewritten standalone question:"""
+) 
+
+llm = ChatOpenAI( 
         model="gpt-4o-mini",
         temperature=0.2
     )
@@ -30,4 +39,6 @@ def rewrite_question(history_text: str, question: str) -> str:
         "history": history_text,
         "question": question
     })
+    print(f"History: {history_text}, Question: {question}")
+    
     return str(response.content)

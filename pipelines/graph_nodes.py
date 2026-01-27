@@ -6,7 +6,8 @@ from agents import synthesize_answer
 from agents import validate_answer
 from agents import expert_analysis
 from agents import rewrite_question
-from langgraph.store.memory import InMemoryStore
+import sqlite3
+import json 
 
 def truncate_text(text: str, max_chars: int):
     """
@@ -20,18 +21,59 @@ def truncate_text(text: str, max_chars: int):
 
     return text
 
+# I used this instead of InMemoryStore for persistence across requests
+class SQLiteStore:
+    def __init__(self, db_path="documind_memory.db"):
+        # check_same_thread=False needed for FastAPI multi-threading
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        self._create_table()
 
-store = InMemoryStore()
+    def _create_table(self):
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS memory (
+                thread_id TEXT PRIMARY KEY,
+                data TEXT
+            )
+        """)
+        self.conn.commit()
+
+    def get(self, thread_id, key):
+        cursor = self.conn.execute("SELECT data FROM memory WHERE thread_id=?", (thread_id,))
+        row = cursor.fetchone()
+        if row:
+            return json.loads(row[0]).get(key)
+        return None
+
+    def put(self, thread_id, key, value):
+        cursor = self.conn.execute("SELECT data FROM memory WHERE thread_id=?", (thread_id,))
+        row = cursor.fetchone()
+        if row:
+            data = json.loads(row[0])
+            data[key] = value
+            self.conn.execute(
+                "UPDATE memory SET data=? WHERE thread_id=?",
+                (json.dumps(data), thread_id)
+            )
+        else:
+            data = {key: value}
+            self.conn.execute(
+                "INSERT INTO memory (thread_id, data) VALUES (?, ?)",
+                (thread_id, json.dumps(data))
+            )
+        self.conn.commit()
+
+
+store = SQLiteStore("documind_memory.db")
 
 def memory_read_node(state):
     thread_id = state.get("thread_id", "default")
     try:
         raw = store.get(thread_id, "conversation")
-
         if isinstance(raw, dict):
             state["conversation_history"] = raw.get("messages", [])
         else:
             state["conversation_history"] = []
+        print("HISTORY LOADED:", state["conversation_history"])
     except Exception as e:
         print(f"[Error] Memory read failed: {e}")
         state["conversation_history"] = []
@@ -39,58 +81,62 @@ def memory_read_node(state):
 
 
 def memory_write_node(state):
+    print("WRITING MEMORY")
     thread_id = state.get("thread_id", "default")
     try:
         raw = store.get(thread_id, "conversation")
-
         if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
             history = raw["messages"]
         else:
             history = []
 
+        # Append user question
         history.append({
             "role": "user",
             "content": state.get("original_question", "")
         })
+        # Append assistant answer
         history.append({
             "role": "assistant",
             "content": state.get("final_answer", "")
         })
 
-        store.put(
-            thread_id,
-            "conversation",
-            {"messages": history}
-        )
+        store.put(thread_id, "conversation", {"messages": history})
+        print("MEMORY SAVED:", history)
     except Exception as e:
         print(f"[Error] Memory write failed: {e}")
     return state
+
+
+
  
 
 def rewrite_node(state):
     try:
-        state["original_question"] = state.get("question", "")
+        question = state.get("question", "")
+        state["original_question"] = question
+
+        history = state.get("conversation_history") or []
 
         history_text = "\n".join(
-            f"{m['role']}: {m['content']}"
-            for m in state.get("conversation_history", [])
+            f"{m.get('role')}: {m.get('content')}"
+            for m in history
         )
+
+        print("HISTORY PASSED TO REWRITE:", repr(history_text))
+        print("QUESTION:", question)
 
         rewritten = rewrite_question(
             history_text=history_text,
-            question=state.get("question", "")
+            question=question
         )
-        state["rewritten_question"] = rewritten
-        
-        if "question" in state:
-            del state["question"]
+
+        state["rewritten_question"] = rewritten.strip() if rewritten else question
 
     except Exception as e:
         print(f"[Error] Rewrite node failed: {e}")
         state["rewritten_question"] = state.get("original_question", "")
-        if "question" in state:
-            del state["question"]
-            
+
     return state
 
 
@@ -149,7 +195,7 @@ def retrieval_node(state):
             chunks = retrieve_relevant_chunks(query=query, top_k=5)
             all_chunks.extend(chunks)
 
-        if not all_chunks:
+        if route != "summary" and not all_chunks:
             state["agent_outputs"] = ["No relevant context found in the uploaded documents."]
             state["final_answer"] = "I could not find relevant information in the uploaded documents to answer your question."
             return state
@@ -173,10 +219,18 @@ def retrieval_node(state):
         print(f">>> Processing with route: {route}")
         
         if route == "summary":
-            print(">>> Generating summary...")
-            result = summarize_context(retrieved_text)
+            print(">>> Summary route detected")
+            texts = []
+            for doc in docs:
+                source = doc.metadata.get("source", "unknown")
+                texts.append(f"{doc.page_content}\n[source: {source}]")
+
+            full_context = truncate_text("\n\n".join(texts), 6000)
+
+            result = summarize_context(full_context)
             state["agent_outputs"] = [result]
             state["final_answer"] = result
+
             
         elif route == "expert":
             print(">>> Generating expert analysis...")

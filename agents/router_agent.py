@@ -5,22 +5,28 @@ from langchain_core.prompts import ChatPromptTemplate
 ROUTES = ["retrieval", "summary", "compare", "expert"]
 
 router_prompt = ChatPromptTemplate.from_template(
-    """You are a router agent in a multi agent system.
-    
-    Your task :
-    Analyze the user question and decide which specialized agent is best suited to answer it.
+"""
+You are a router agent in a multi-agent system.
 
-    1.retrieval_agent : factual questions answered from documents.
-    2.summary_agent : questions requiring concise summaries of document content.
-    3.compare_agent : questions that involve comparing information across multiple documents.
-    4.expert_agent : deep explanation or interpretation.
+Your task:
+Analyze the user's question and determine which specialized agent is best suited to answer it.
 
-    user question : {question}
+Agent options:
+1. retrieval_agent: Factual questions answered directly from document content.
+2. summary_agent: Questions requiring a concise summary of document content.
+3. compare_agent: Questions that involve comparing information across multiple documents.
+4. expert_agent: Questions requiring deep explanation, interpretation, or reasoning beyond basic facts.
 
-    Respond with only one word  from this list:
-    retrieval, summary, compare, expert
-    
-    """
+Instructions:
+- Respond with ONLY one word from this list: retrieval, summary, compare, expert.
+- Do NOT explain your choice, provide context, or add extra text.
+- Base your choice solely on the content and type of the question.
+
+User question:
+{question}
+
+Return your answer as a single word.
+"""
 )
 
 def route_question(question: str) -> str:

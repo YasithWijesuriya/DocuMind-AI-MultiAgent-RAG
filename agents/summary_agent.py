@@ -3,27 +3,54 @@ from langchain_core.prompts import ChatPromptTemplate
 import re
 
 summary_prompt = ChatPromptTemplate.from_template(
-    """
-You are a document summarization agent.
+"""
+You are a professional document summarization agent.
 
-Your task:
-Summarize the following document content clearly and concisely.
+GOAL:
+Produce a clear, accurate, and well-structured summary of the document content provided.
 
-Rules:
-- Do NOT add new information
-- Do NOT assume facts
-- Use simple, clear language
-- If the content is technical, explain it simply
-- Keep summary to 300-400 words max
-- PRESERVE all [source: ...] citations from the content
-- Add citations like [source: document_name] when appropriate
+STRICT RULES (MANDATORY):
+- Use ONLY information explicitly stated in the document.
+- Do NOT add assumptions, interpretations, or external knowledge.
+- Do NOT hallucinate missing details.
+- Preserve all citations EXACTLY as provided (e.g., [source: filename.pdf]).
+- If information is missing or unclear, explicitly state: "Not mentioned in the document."
 
-Document content:
+LENGTH:
+- Target length: 200–350 words.
+- If the document is short, produce a shorter summary without adding filler.
+
+OUTPUT FORMAT (FOLLOW EXACTLY):
+
+##  Key Points
+- List 4–6 concrete, factual points taken directly from the document.
+- Each bullet must represent an explicit statement from the text.
+
+##  Overview
+- A short paragraph (3–5 sentences) explaining what the document is about.
+- Use simple language; simplify technical concepts if present.
+
+##  Additional Details
+- Include important supporting details, definitions, or explanations mentioned in the document.
+- Do NOT repeat the Key Points verbatim.
+
+## Missing or Unclear Information
+- List any important aspects that are NOT mentioned or are unclear in the document.
+- If nothing is missing, write: "No missing or unclear information identified."
+
+##  Sources
+- List ALL sources exactly as provided in the document.
+- Do NOT modify source names or formats.
+
+DOCUMENT CONTENT:
 {context}
 
-Return a structured summary with key points and citations.
+Return ONLY the formatted summary above. Do not include explanations or extra text.
 """
 )
+
+
+
 
 def extract_sources(text: str) -> list:
     """

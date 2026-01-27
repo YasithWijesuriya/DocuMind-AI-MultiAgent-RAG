@@ -3,8 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 
 validator_prompt = ChatPromptTemplate.from_template(
-    """
-You are a validator agent in a multi-agent document analysis system.
+    """You are a validator agent in a multi-agent document analysis system.
 
 Your role:
 Critically evaluate the FINAL synthesized answer using ONLY the provided evidence.
@@ -50,9 +49,7 @@ Suggestions:
 - Provide improvement suggestions ONLY if Validation Status is FAIL
 - Suggestions must be based strictly on the provided evidence
 - If no suggestions are needed, write: None
-
-"""
-)
+""")
 
 def validate_answer(final_answer: str, evidence: str) -> dict:
 

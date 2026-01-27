@@ -3,13 +3,14 @@ import AskForm from "./components/AskForm";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col">
-      <header className="sticky top-0 z-50 bg-white shadow-md border-b border-gray-200">
+    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
+           
+      <header className="sticky top-0 z-50 bg-gray-800 shadow-md border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-md">
+            <div className="p-3 bg-gray-700 rounded-lg shadow-md">
               <svg
-                className="h-6 w-6 text-white"
+                className="h-8 w-8 text-green-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -23,30 +24,39 @@ export default function App() {
               </svg>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 bg-clip-text text-transparent">
-                DOC-MIND
+              <h1 className="text-3xl sm:text-3xl font-bold text-white">
+                <span className="text-green-600">DOCU</span>-MIND
               </h1>
-              <p className="text-sm text-gray-500 font-medium">
+              <p className="text-sm text-gray-400 font-medium">
                 AI Document Question Answering System
               </p>
             </div>
           </div>
 
-          <div className="mt-3 sm:mt-0 flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full border border-green-200">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-green-700">System Ready</span>
-          </div>
+          <div className="mt-3 sm:mt-0 flex items-center gap-3 px-4 py-2 bg-gray-800 border border-gray-600 rounded-full shadow-inner shadow-black/20 relative">
+  
+  <span className="relative flex">
+    <span className="absolute inline-flex h-3 w-3 rounded-full bg-green-400 opacity-50 animate-ping"></span>
+    <span className="relative inline-flex h-3 w-3 rounded-full bg-green-400"></span>
+  </span>
+
+  <span className="text-sm font-medium text-gray-100">
+    System Ready
+  </span>
+
+  <span className="absolute -top-1 -right-2 h-2 w-2 bg-green-300 rounded-full blur-md opacity-30"></span>
+</div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto px-6 py-10 w-full">
+      <main className="flex-1 w-full px-4 lg:px-10 py-6">
         <AskForm />
       </main>
 
-      <footer className="bg-black border-t border-gray-200">
-        <div className="max-w-2xl mx-auto px-6 py-6 text-center text-white text-sm">
-          <hr className="mb-3 border-gray-400" />
-          <p>© 2026 DOC-MIND. Powered by LangGraph & Advanced RAG.</p>
+      <footer className="bg-gray-800 shadow-md border-t border-gray-700">
+        <div className="max-w-2xl mx-auto px-6 py-6 font-bold text-center text-sm text-gray-400">
+          <hr className="mb-3 border-gray-700" />
+          <p>© 2026 DOCU-MIND. Powered by LangGraph & Advanced RAG.</p>
         </div>
       </footer>
     </div>
