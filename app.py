@@ -5,7 +5,7 @@ import asyncio
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
+# from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
 from fastapi.responses import FileResponse
 
 app = FastAPI()
@@ -39,7 +39,7 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
     from pipelines.docmind_pipeline import ask, get_route_type
     try:
         state = {"thread_id": thread_id}
-        state = memory_read_node(state)
+        # state = memory_read_node(state)
 
         state["question"] = question
         state = rewrite_node(state)
@@ -58,7 +58,7 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
 
         state["original_question"] = question
         state["final_answer"] = result.get("final_answer", "")
-        state = memory_write_node(state)
+        # state = memory_write_node(state)
 
         final_answer = state.get("final_answer", "")
 

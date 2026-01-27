@@ -21,10 +21,8 @@ def truncate_text(text: str, max_chars: int):
 
     return text
 
-# I used this instead of InMemoryStore for persistence across requests
 class SQLiteStore:
     def __init__(self, db_path="documind_memory.db"):
-        # check_same_thread=False needed for FastAPI multi-threading
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._create_table()
 
@@ -63,49 +61,47 @@ class SQLiteStore:
         self.conn.commit()
 
 
-store = SQLiteStore("documind_memory.db")
+# store = SQLiteStore("documind_memory.db")
 
-def memory_read_node(state):
-    thread_id = state.get("thread_id", "default")
-    try:
-        raw = store.get(thread_id, "conversation")
-        if isinstance(raw, dict):
-            state["conversation_history"] = raw.get("messages", [])
-        else:
-            state["conversation_history"] = []
-        print("HISTORY LOADED:", state["conversation_history"])
-    except Exception as e:
-        print(f"[Error] Memory read failed: {e}")
-        state["conversation_history"] = []
-    return state
+# def memory_read_node(state):
+#     thread_id = state.get("thread_id", "default")
+#     try:
+#         raw = store.get(thread_id, "conversation")
+#         if isinstance(raw, dict):
+#             state["conversation_history"] = raw.get("messages", [])
+#         else:
+#             state["conversation_history"] = []
+#         print("HISTORY LOADED:", state["conversation_history"])
+#     except Exception as e:
+#         print(f"[Error] Memory read failed: {e}")
+#         state["conversation_history"] = []
+#     return state
 
 
-def memory_write_node(state):
-    print("WRITING MEMORY")
-    thread_id = state.get("thread_id", "default")
-    try:
-        raw = store.get(thread_id, "conversation")
-        if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
-            history = raw["messages"]
-        else:
-            history = []
+# def memory_write_node(state):
+#     print("WRITING MEMORY")
+#     thread_id = state.get("thread_id", "default")
+#     try:
+#         raw = store.get(thread_id, "conversation")
+#         if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
+#             history = raw["messages"]
+#         else:
+#             history = []
 
-        # Append user question
-        history.append({
-            "role": "user",
-            "content": state.get("original_question", "")
-        })
-        # Append assistant answer
-        history.append({
-            "role": "assistant",
-            "content": state.get("final_answer", "")
-        })
+#         history.append({
+#             "role": "user",
+#             "content": state.get("original_question", "")
+#         })
+#         history.append({
+#             "role": "assistant",
+#             "content": state.get("final_answer", "")
+#         })
 
-        store.put(thread_id, "conversation", {"messages": history})
-        print("MEMORY SAVED:", history)
-    except Exception as e:
-        print(f"[Error] Memory write failed: {e}")
-    return state
+#         store.put(thread_id, "conversation", {"messages": history})
+#         print("MEMORY SAVED:", history)
+#     except Exception as e:
+#         print(f"[Error] Memory write failed: {e}")
+#     return state
 
 
 
