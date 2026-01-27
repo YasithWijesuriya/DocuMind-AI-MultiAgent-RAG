@@ -24,7 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-store = SQLiteStore("documind_memory.db")
+# store = SQLiteStore("documind_memory.db")
 
 
 def file_hash(path: str) -> str:
@@ -42,7 +42,7 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
         # state = memory_read_node(state)
 
         state["question"] = question
-        state = rewrite_node(state)
+        # state = rewrite_node(state)
         rewritten_question = state.get("rewritten_question", question)
 
         route = get_route_type(rewritten_question)
