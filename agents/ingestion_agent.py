@@ -74,15 +74,13 @@ def ingest_document(pdf_path: str, force: bool = False):
 
         embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-        pc = Pinecone(api_key=PINECONE_API_KEY)
-        index = pc.Index(PINECONE_INDEX_NAME)
 
         PineconeVectorStore.from_documents(
             documents=chunks,
             embedding=embeddings,
             index_name=PINECONE_INDEX_NAME,
             pinecone_api_key=PINECONE_API_KEY,
-            namespace=doc_id
+            namespace=doc_id,
         )
 
         print(f"[INGESTED] {pdf_path} with {len(chunks)} chunks")

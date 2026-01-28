@@ -55,14 +55,10 @@ export default function FileUploadZone({ onFileChange, disabled, fileCount, file
 
 
 
-        {/* Background gradient animation */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-200/0 via-blue-100/5 to-cyan-100/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-        {/* Content */}
         <div className="relative z-10 flex flex-col items-center justify-center text-center">
-          {/* Icon with animation */}
         <div className="mb-6 relative group">
-          {/* Main Icon */}
           <FiUpload
             className={`w-13 h-13 text-green-100 transition-all duration-500 ease-in-out ${
               disabled
@@ -91,8 +87,7 @@ export default function FileUploadZone({ onFileChange, disabled, fileCount, file
         </div>
       </label>
 
-      {/* Success state */}
-      {fileCount > 0 && (
+      {/* {fileCount > 0 && (
         <div className="mt-6 p-5 bg-gradient-to-r from-green-200/40 to-cyan-700/50 rounded-2xl border border-green-400/30 animate-slide-up shadow-lg shadow-blue-100/10">
           <div className="flex items-start gap-3">
             <div className="text-green-300 text-xl mt-1">✓</div>
@@ -104,7 +99,7 @@ export default function FileUploadZone({ onFileChange, disabled, fileCount, file
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       <style>{`
         @keyframes slideUp {

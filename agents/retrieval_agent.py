@@ -17,35 +17,23 @@ def retrieve_relevant_chunks(query: str, top_k: int = 2, namespace: Optional[str
             model="text-embedding-3-small"
         )
 
-        vectorstore_kwargs = {
-            "index_name": PINECONE_INDEX_NAME,
-            "pinecone_api_key": PINECONE_API_KEY,
-            "embedding": embeddings,
-        }
-        
-        # Only add namespace if provided
-        if namespace:
-            vectorstore_kwargs["namespace"] = namespace
-            
-        vectorstore = PineconeVectorStore(**vectorstore_kwargs)
+        vectorstore = PineconeVectorStore(
+            index_name=PINECONE_INDEX_NAME,
+            pinecone_api_key=PINECONE_API_KEY,
+            embedding=embeddings,
+            namespace=namespace
+        )
 
-        search_kwargs = {
-            "query": query,
-            "k": top_k,
-        }
-        
-        if namespace:
-            search_kwargs["namespace"] = namespace
-            
-        relevant_chunks = vectorstore.similarity_search(**search_kwargs)
+        results = vectorstore.similarity_search(
+            query=query,
+            k=top_k
+        )
 
-        print(f"[INFO] Retrieved {len(relevant_chunks)} chunks from namespace: {namespace or 'all'}")
-        return relevant_chunks
-        
+        print(f"[INFO] Retrieved {len(results)} chunks from {namespace or 'all'}")
+        return results
+
     except Exception as e:
-        print(f"[Error] Retrieving relevant chunks: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[Error] Retrieving chunks: {e}")
         return []
 
 

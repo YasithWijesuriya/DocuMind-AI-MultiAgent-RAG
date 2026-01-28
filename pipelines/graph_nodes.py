@@ -61,51 +61,48 @@ class SQLiteStore:
         self.conn.commit()
 
 
-# store = SQLiteStore("documind_memory.db")
+store = SQLiteStore("documind_memory.db")
 
-# def memory_read_node(state):
-#     thread_id = state.get("thread_id", "default")
-#     try:
-#         raw = store.get(thread_id, "conversation")
-#         if isinstance(raw, dict):
-#             state["conversation_history"] = raw.get("messages", [])
-#         else:
-#             state["conversation_history"] = []
-#         print("HISTORY LOADED:", state["conversation_history"])
-#     except Exception as e:
-#         print(f"[Error] Memory read failed: {e}")
-#         state["conversation_history"] = []
-#     return state
-
-
-# def memory_write_node(state):
-#     print("WRITING MEMORY")
-#     thread_id = state.get("thread_id", "default")
-#     try:
-#         raw = store.get(thread_id, "conversation")
-#         if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
-#             history = raw["messages"]
-#         else:
-#             history = []
-
-#         history.append({
-#             "role": "user",
-#             "content": state.get("original_question", "")
-#         })
-#         history.append({
-#             "role": "assistant",
-#             "content": state.get("final_answer", "")
-#         })
-
-#         store.put(thread_id, "conversation", {"messages": history})
-#         print("MEMORY SAVED:", history)
-#     except Exception as e:
-#         print(f"[Error] Memory write failed: {e}")
-#     return state
+def memory_read_node(state):
+    thread_id = state.get("thread_id", "default")
+    try:
+        raw = store.get(thread_id, "conversation")
+        if isinstance(raw, dict):
+            state["conversation_history"] = raw.get("messages", [])
+        else:
+            state["conversation_history"] = []
+        print("HISTORY LOADED:", state["conversation_history"])
+    except Exception as e:
+        print(f"[Error] Memory read failed: {e}")
+        state["conversation_history"] = []
+    return state
 
 
+def memory_write_node(state):
+    print("WRITING MEMORY")
+    thread_id = state.get("thread_id", "default")
+    try:
+        raw = store.get(thread_id, "conversation")
+        if isinstance(raw, dict) and isinstance(raw.get("messages"), list):
+            history = raw["messages"]
+        else:
+            history = []
 
- 
+        history.append({
+            "role": "user",
+            "content": state.get("original_question", "")
+        })
+        history.append({
+            "role": "assistant",
+            "content": state.get("final_answer", "")
+        })
+
+        store.put(thread_id, "conversation", {"messages": history})
+        print("MEMORY SAVED:", history)
+    except Exception as e:
+        print(f"[Error] Memory write failed: {e}")
+    return state
+
 
 def rewrite_node(state):
     try:
@@ -176,19 +173,16 @@ def retrieval_node(state):
         
         print(f"[INFO] Document namespaces to search: {doc_namespaces}")
         
-        # Step 1: Retrieve relevant chunks from uploaded documents ONLY
         all_chunks = []
         
         if doc_namespaces:
-            # Search within specific document namespaces
             for namespace in doc_namespaces:
                 print(f">>> Retrieving chunks from namespace: {namespace}")
-                chunks = retrieve_relevant_chunks(query=query, top_k=5, namespace=namespace)
+                chunks = retrieve_relevant_chunks(query=query, top_k=2, namespace=namespace)
                 all_chunks.extend(chunks)
         else:
-            # Fallback: search all namespaces
             print(">>> No document namespaces found, searching all documents")
-            chunks = retrieve_relevant_chunks(query=query, top_k=5)
+            chunks = retrieve_relevant_chunks(query=query, top_k=2)
             all_chunks.extend(chunks)
 
         if route != "summary" and not all_chunks:
@@ -216,14 +210,7 @@ def retrieval_node(state):
         
         if route == "summary":
             print(">>> Summary route detected")
-            texts = []
-            for doc in docs:
-                source = doc.metadata.get("source", "unknown")
-                texts.append(f"{doc.page_content}\n[source: {source}]")
-
-            full_context = truncate_text("\n\n".join(texts), 6000)
-
-            result = summarize_context(full_context)
+            result = summarize_context(retrieved_text)
             state["agent_outputs"] = [result]
             state["final_answer"] = result
 
@@ -303,7 +290,6 @@ def synthesis_node(state):
         state["final_answer"] = "No agent outputs available to synthesize."
         return state
 
-    #  Initialize safe_outputs before try block
     safe_outputs = []
     
     try:

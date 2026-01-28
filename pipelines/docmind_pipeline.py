@@ -9,6 +9,7 @@ from agents import route_question, rewrite_question
 from langchain_core.documents import Document
 import uuid
 import hashlib
+import os  
 
 def ask(question: str, docs: list[str], auto_ingest: bool = False):
     print(">>> ask() started")
@@ -47,15 +48,45 @@ def ask(question: str, docs: list[str], auto_ingest: bool = False):
                         print(f"[Error] Auto-ingestion failed for {doc}: {e}")
                 
                 else:
-                    # wrap plain text in Document object
                     loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
         else:
             for doc in docs:
                 if isinstance(doc, str):
-                    loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
+                    if doc.endswith(".pdf") and os.path.exists(doc):
+                        print(f">>> Loading PDF file: {doc}")
+                        try:
+                            hasher = hashlib.sha256()
+                            with open(doc, "rb") as f:
+                                hasher.update(f.read())
+                            doc_id = hasher.hexdigest()
+                            
+                            loader = PyPDFLoader(doc)
+                            chunks = loader.load()
+                            
+                            for chunk in chunks:
+                                chunk.metadata["doc_id"] = doc_id
+                                if "source" not in chunk.metadata or chunk.metadata.get("source") == "":
+                                    chunk.metadata["source"] = os.path.basename(doc)
+                            
+                            loaded_docs.extend(chunks)
+                            print(f"[INFO] PDF loaded successfully: {doc}")
+                            print(f"[INFO] - doc_id: {doc_id}")
+                            print(f"[INFO] - chunks extracted: {len(chunks)}")
+                        except Exception as e:
+                            print(f"[Error] PDF loading failed for {doc}: {e}")
+                            import traceback
+                            traceback.print_exc()
+                    else:
+                        print(f">>> Treating as plain text content")
+                        loaded_docs.append(
+                            Document(page_content=doc, metadata={"source": "user_input"})
+                        )
                 else:
+                    # Already a Document object
                     loaded_docs.append(doc)
 
+        print(f"[INFO] Total documents loaded: {len(loaded_docs)}")
+        
         state: DocuMindState = {
             "question": question,
             "docs": loaded_docs,
@@ -80,7 +111,6 @@ def ask(question: str, docs: list[str], auto_ingest: bool = False):
         return {"error": str(e)}
 
 
-# 🔹 Add get_route_type function
 def get_route_type(question: str) -> str:
     """
     Simple function to determine route type based on the question.
