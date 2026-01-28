@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
 from fastapi.responses import FileResponse
+import uvicorn
 
 app = FastAPI()
 
@@ -135,3 +136,21 @@ async def favicon():
     if os.path.exists("static/favicon.ico"):
         return FileResponse("static/favicon.ico")
     return {}  # empty JSON prevent 500
+
+
+
+@app.get("/")
+def root():
+    return {"message": "DOCMIND is running!"}
+
+# Example route to test memory read/write
+@app.get("/test-memory")
+def test_memory():
+    thread_id = "test-thread"
+    store.put(thread_id, "conversation", {"messages": [{"role": "user", "content": "Hello"}]})
+    data = store.get(thread_id, "conversation")
+    return {"thread_id": thread_id, "data": data}
+
+# Run locally
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
