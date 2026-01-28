@@ -7,7 +7,9 @@ from agents import validate_answer
 from agents import expert_analysis
 from agents import rewrite_question
 import sqlite3
-import json 
+import json
+import os
+import shutil
 
 def truncate_text(text: str, max_chars: int):
     """
@@ -23,7 +25,21 @@ def truncate_text(text: str, max_chars: int):
 
 class SQLiteStore:
     def __init__(self, db_path="documind_memory.db"):
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
+        # Deploy-time path (original db) - read-only
+        self.original_db_path = db_path
+        
+        # Runtime path in /tmp - writeable in serverless
+        self.runtime_db_path = os.path.join("/tmp", "documind_memory.db")
+        
+        # Copy original db to /tmp on startup if not exists
+        if not os.path.exists(self.runtime_db_path):
+            if os.path.exists(self.original_db_path):
+                shutil.copy(self.original_db_path, self.runtime_db_path)
+            else:
+                # Create new empty DB
+                open(self.runtime_db_path, 'a').close()
+        
+        self.conn = sqlite3.connect(self.runtime_db_path, check_same_thread=False)
         self._create_table()
 
     def _create_table(self):
@@ -59,6 +75,7 @@ class SQLiteStore:
                 (thread_id, json.dumps(data))
             )
         self.conn.commit()
+
 
 
 store = SQLiteStore("documind_memory.db")
