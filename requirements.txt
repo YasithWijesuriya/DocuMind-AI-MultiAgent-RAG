@@ -1,7 +1,7 @@
 fastapi==0.111.1
 uvicorn[standard]==0.23.2
 pydantic==2.6.0
-python-multipart==0.0.6
+python-multipart>=0.0.7
 
 langchain==0.0.354
 langchain-community==0.4.0
