@@ -1,0 +1,69 @@
+# Environment files - NEVER upload
+.env
+.env.local
+.env.*.local
+
+# Python cache and virtual environments
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+.pytest_cache
+.coverage
+htmlcov/
+.tox/
+*.egg-info/
+dist/
+build/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+test-results.xml
+
+# LangChain/LLM specific
+.langchain/
+.langsmith/
+langchain-debug.log
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.pid
+
+# Build artifacts
+*.egg
+*.whl
+
+# Documentation
+*.md
+!README.md
+docs/
+examples/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
