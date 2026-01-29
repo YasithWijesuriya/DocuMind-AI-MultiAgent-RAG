@@ -1,5 +1,4 @@
 import hashlib
-import cv2
 import time
 from config import (
     CHUNK_SIZE,

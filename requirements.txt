@@ -1,10 +1,10 @@
 # Web Framework
-fastapi==0.104.1
+fastapi==0.103.2        # downgrade for pydantic v1
 pydantic==1.10.12
 uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 
-# LangChain - Updated to compatible versions
+# LangChain stack
 langchain==0.1.20
 langchain-core==0.1.52
 langchain-community==0.0.38
@@ -14,29 +14,26 @@ langchain-text-splitters==0.0.2
 langsmith==0.1.57
 langgraph==0.0.41
 
-# Vector Store
+# Vector store
 pinecone-client==3.2.2
 
-# PDF Processing - Updated version
+# PDF Processing
 pypdf==6.2.0
 pdfminer-six==20221105
 pdf2image==1.16.3
 pillow==10.1.0
+unstructured==0.10.30   # REQUIRED for UnstructuredPDFLoader
 
-# Data / CSV / tables
+# Data / CSV
 pandas==2.2.2
-
-# Numpy (compatible)
 numpy==1.26.4
+
+# Optional (if any image handling)
 opencv-python-headless==4.9.0.80
 
-
-# Environment & Config
+# Environment & config
 python-dotenv==1.0.0
 beautifulsoup4==4.12.2
-
-# Additional dependencies
+requests==2.31.0
 packaging==23.2
 pydantic-settings==2.12.0
-requests==2.31.0
-
