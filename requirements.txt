@@ -3,15 +3,16 @@ pydantic==2.6.0
 uvicorn[standard]==0.23.2
 python-multipart==0.0.6
 
-langchain==0.0.354
-langchain-community==0.0.19
-langchain-core==0.1.23
-langchain-openai==0.0.6
-langchain-pinecone==0.0.2
-langsmith==0.0.87
+langchain==0.1.20
+langchain-core==0.1.52
+langchain-community==0.0.38
+langchain-openai==0.0.8
+langchain-pinecone==0.0.3
+langsmith==0.1.67
+langgraph==0.0.23
 
 pinecone-client==3.1.0
 
 pypdf==3.17.4
 python-dotenv==1.0.0
-bs4==0.0.2
+beautifulsoup4==4.12.2
