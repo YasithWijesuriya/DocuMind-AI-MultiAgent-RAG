@@ -1,16 +1,16 @@
-fastapi==0.111.1
+fastapi==0.99.1
 uvicorn[standard]==0.23.2
-pydantic==2.6.0
-python-multipart>=0.0.7
+pydantic==1.10.13
+python-multipart==0.0.6
 
-langchain==0.1.53
-langchain-community==0.4.0
-langchain-core==0.1.53
-langchain-openai==0.0.8
-langchain-pinecone==0.0.3
+langchain==0.0.354
+langchain-community==0.0.19
+langchain-core==0.1.23
+langchain-openai==0.0.6
+langchain-pinecone==0.0.2
 langsmith==0.0.87
 
-pinecone-client==6.0.0
+pinecone-client==3.1.0
 
 pypdf==3.17.4
 python-dotenv==1.0.0
