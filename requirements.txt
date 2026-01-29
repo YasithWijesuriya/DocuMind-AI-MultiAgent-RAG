@@ -28,4 +28,4 @@ pypdf==6.2.0
 beautifulsoup4==4.12.2
 
 # Validation (LangChain 0.1.x needs Pydantic v1)
-pydantic==1.10.12
+pydantic==1.10.13
