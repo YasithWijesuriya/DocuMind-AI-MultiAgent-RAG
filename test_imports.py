@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-test_imports.py - Verify all LangChain and dependent imports work correctly
+test_imports.py - Verify all Starlette + LangChain + dependent imports work correctly
 Run this before deploying to Vercel to catch import errors early
 """
 
@@ -45,21 +45,15 @@ def main():
     print(f"Python version: {sys.version}")
     print(f"Python executable: {sys.executable}")
     
-    results = {
-        "passed": 0,
-        "failed": 0,
-        "errors": []
-    }
+    results = {"passed": 0, "failed": 0, "errors": []}
     
-    # Test 1: Core Framework
-    print_header("1. FastAPI & Web Framework")
+    # Test 1: Web Framework
+    print_header("1. Web Framework")
     tests = [
-        ("FastAPI", "fastapi"),
+        ("Starlette", "starlette"),
         ("Uvicorn", "uvicorn"),
         ("Pydantic", "pydantic"),
-        ("Pydantic Settings", "pydantic_settings"),
     ]
-    
     for name, path in tests:
         if test_import(name, path):
             results["passed"] += 1
@@ -79,7 +73,6 @@ def main():
         ("LangSmith", "langsmith"),
         ("LangGraph", "langgraph"),
     ]
-    
     for name, path in tests:
         if test_import(name, path):
             results["passed"] += 1
@@ -87,14 +80,15 @@ def main():
             results["failed"] += 1
             results["errors"].append(name)
     
-    # Test 3: Document Loaders
+    # Test 3: Document Processing
     print_header("3. Document Processing")
     tests = [
         ("UnstructuredPDFLoader", "langchain_community.document_loaders"),
         ("PyPDF", "pypdf"),
         ("BeautifulSoup", "bs4"),
+        ("Pandas", "pandas"),
+        ("Numpy", "numpy"),
     ]
-    
     for name, path in tests:
         if test_import(name, path):
             results["passed"] += 1
@@ -108,7 +102,6 @@ def main():
         ("Pinecone Client", "pinecone"),
         ("OpenAI Embeddings", "langchain_openai.embeddings"),
     ]
-    
     for name, path in tests:
         if test_import(name, path):
             results["passed"] += 1
@@ -116,14 +109,14 @@ def main():
             results["failed"] += 1
             results["errors"].append(name)
     
-    # Test 5: Environment
-    print_header("5. Environment & Configuration")
+    # Test 5: Environment & Configuration
+    print_header("5. Environment & Config")
     tests = [
         ("python-dotenv", "dotenv"),
         ("Requests", "requests"),
         ("Packaging", "packaging"),
+        ("Pillow", "PIL"),
     ]
-    
     for name, path in tests:
         if test_import(name, path):
             results["passed"] += 1
@@ -131,19 +124,17 @@ def main():
             results["failed"] += 1
             results["errors"].append(name)
     
-    # Test 6: Deep Import Test (Critical Paths)
-    print_header("6. Deep Import Test (Critical Paths)")
-    
+    # Test 6: Critical Imports (Deep)
+    print_header("6. Critical Deep Imports")
     critical_imports = [
         ("ChatOpenAI", lambda: __import__("langchain_openai", fromlist=["ChatOpenAI"]).ChatOpenAI),
         ("UnstructuredPDFLoader", lambda: __import__("langchain_community.document_loaders", fromlist=["UnstructuredPDFLoader"]).UnstructuredPDFLoader),
         ("PineconeVectorStore", lambda: __import__("langchain_pinecone", fromlist=["PineconeVectorStore"]).PineconeVectorStore),
-        ("Pinecone Client", lambda: __import__("pinecone", fromlist=["Pinecone"]).Pinecone),
+        ("Pinecone", lambda: __import__("pinecone", fromlist=["Pinecone"]).Pinecone),
     ]
-    
-    for name, import_fn in critical_imports:
+    for name, fn in critical_imports:
         try:
-            import_fn()
+            fn()
             print_success(f"{name}")
             results["passed"] += 1
         except Exception as e:
@@ -151,16 +142,14 @@ def main():
             results["failed"] += 1
             results["errors"].append(name)
     
-    # Test 7: Version Check
-    print_header("7. Version Information")
-    
+    # Test 7: Versions
+    print_header("7. Version Info")
     version_checks = [
         ("pydantic", "pydantic", "__version__"),
         ("langchain", "langchain", "__version__"),
         ("langchain-core", "langchain_core", "__version__"),
         ("langsmith", "langsmith", "__version__"),
     ]
-    
     for display_name, module_name, attr in version_checks:
         try:
             module = __import__(module_name, fromlist=[attr])
@@ -173,7 +162,6 @@ def main():
     print_header("Summary")
     total = results["passed"] + results["failed"]
     percentage = (results["passed"] / total * 100) if total > 0 else 0
-    
     print(f"Total tests: {total}")
     print(f"Passed: {results['passed']}")
     print(f"Failed: {results['failed']}")
