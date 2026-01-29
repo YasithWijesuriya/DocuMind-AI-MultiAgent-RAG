@@ -1,13 +1,8 @@
+// vercel.json
 {
   "version": 2,
   "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python",
-      "config": {
-        "pythonVersion": "3.12"
-      }
-    }
+    { "src": "app.py", "use": "@vercel/python", "config": { "installCommand": "uv add --frozen -r requirements.txt" } }
   ],
   "routes": [
     { "src": "/(.*)", "dest": "app.py" }
