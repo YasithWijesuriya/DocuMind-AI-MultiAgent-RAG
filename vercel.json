@@ -5,8 +5,7 @@
       "src": "app.py",
       "use": "@vercel/python@4.2.0",
       "config": {
-        "pythonVersion": "3.11",
-        "maxLambdaSize": "250mb"
+        "pythonVersion": "3.11"
       }
     }
   ],
@@ -17,7 +16,6 @@
     }
   ],
   "env": {
-    "PYTHONUNBUFFERED": "1",
-    "PYTHONPATH": "/var/task"
+    "PYTHONUNBUFFERED": "1"
   }
 }
