@@ -8,6 +8,9 @@ from fastapi.responses import StreamingResponse
 from pipelines.graph_nodes import SQLiteStore, memory_read_node, memory_write_node, rewrite_node
 from fastapi.responses import FileResponse
 import uvicorn
+import sys
+print("Python version:", sys.version)
+
 
 app = FastAPI()
 
