@@ -2,17 +2,17 @@
   "version": 2,
 
   "functions": {
-    "api/app.py": {
+    "api/*.py": {
       "runtime": "@vercel/python@4.2.0",
       "maxDuration": 60
     }
   },
 
   "routes": [
-    { "src": "/", "dest": "/api/app.py" },
-    { "src": "/ask", "dest": "/api/app.py" },
-    { "src": "/health", "dest": "/api/app.py" },
-    { "src": "/info", "dest": "/api/app.py" }
+    { "src": "/", "dest": "/api/index.py" },
+    { "src": "/ask", "dest": "/api/index.py" },
+    { "src": "/health", "dest": "/api/index.py" },
+    { "src": "/info", "dest": "/api/index.py" }
   ],
 
   "env": {
