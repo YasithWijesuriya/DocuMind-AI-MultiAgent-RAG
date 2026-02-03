@@ -2,19 +2,15 @@ import sys
 import os
 from pathlib import Path
 
-# Add project root to sys.path so pipelines/ agents/ config.py are all findable
-project_root = str(Path(__file__).resolve().parent.parent)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Clear proxies
 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 
             'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'NO_PROXY']:
     os.environ.pop(key, None)
 
-print("[INFO] ✅ Proxy environment cleared")
-
-import config  # loads .env and validates keys
-
+import config
 import json
 import hashlib
 import asyncio
@@ -25,6 +21,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
 from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node
+from mangum import Mangum
+
 
 
 def file_hash(path: str) -> str:
@@ -201,6 +199,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+asgi_handler = Mangum(app)
 
 if __name__ == "__main__":
     import uvicorn
