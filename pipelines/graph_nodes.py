@@ -1,13 +1,20 @@
-from agents.router_agent import route_question
-from agents.retrieval_agent import retrieve_relevant_chunks
-from agents.summary_agent import summarize_context, format_summary_result
-from agents.compare_agent import compare_documents, format_comparison_result
-from agents.synthesis_agent import synthesize_answer, format_synthesis_output
-from agents.validator_agent import validate_answer, format_validation_result
-from agents.expert_agent import expert_analysis, format_expert_result
-from agents.rewrite_agent import rewrite_question
-import json
+import sys
 import os
+from pathlib import Path
+
+project_root = str(Path(__file__).resolve().parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from agents import route_question
+from agents import retrieve_relevant_chunks
+from agents import summarize_context,format_summary_result
+from agents import compare_documents, format_comparison_result
+from agents import synthesize_answer, format_synthesis_output
+from agents import validate_answer, format_validation_result
+from agents import expert_analysis, format_expert_result
+from agents import rewrite_question
+import json
 from typing import Optional, Any
 import hashlib
 

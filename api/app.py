@@ -1,5 +1,14 @@
-import config 
+import sys
 import os
+from pathlib import Path
+
+# Add project root to sys.path so pipelines/ agents/ config.py are all findable
+project_root = str(Path(__file__).resolve().parent.parent)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+import config  # loads .env and validates keys
+
 import json
 import hashlib
 import asyncio
@@ -9,11 +18,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
-from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node, VercelFriendlyStore
-from mangum import Mangum
-
-
-store = VercelFriendlyStore("documind_memory.db")
+from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node
 
 
 def file_hash(path: str) -> str:
@@ -26,13 +31,13 @@ def file_hash(path: str) -> str:
 
 async def stream_response(question: str, file_paths: list[str], thread_id: str):
     """
-    Stream NDJSON response (streaming text + metadata)
-    
+    Stream NDJSON response word-by-word
+
     Args:
         question: User question
         file_paths: List of uploaded file paths
         thread_id: Thread identifier for memory
-        
+
     Yields:
         NDJSON formatted responses
     """
@@ -43,16 +48,16 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
         state = {"thread_id": thread_id}
         state = memory_read_node(state)
 
-        # Rewrite question
+        # Rewrite question using history
         state["question"] = question
         state = rewrite_node(state)
         rewritten_question = state.get("rewritten_question", question)
 
-        # Determine route and auto-ingest setting
+        # Determine auto-ingest
         route = get_route_type(rewritten_question)
         auto_ingest = route != "summary"
 
-        # Run pipeline
+        # Run pipeline (blocking → run in thread)
         result = await asyncio.to_thread(
             ask,
             question=rewritten_question,
@@ -62,23 +67,24 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
 
         # Save to memory
         state["original_question"] = question
-        state["final_answer"] = result.get("final_answer", "")
-        state = memory_write_node(state)
+        state["final_answer"] = result.get("final_answer", "")  # FIX: use result, not state
+        memory_write_node(state)
 
-        # Stream response word by word
-        final_answer = state.get("final_answer", "")
-        
+        # Stream the final answer word by word
+        final_answer = result.get("final_answer", "")  # FIX: use result
+
         if final_answer:
             words = final_answer.split()
+            total = len(words)
             for i, word in enumerate(words):
                 yield json.dumps({
                     "type": "text",
                     "content": word + " ",
-                    "progress": int((i / len(words)) * 100)
+                    "progress": int((i / total) * 100)
                 }) + "\n"
-                await asyncio.sleep(0.01)  # Reduced for better UX
+                await asyncio.sleep(0.01)
 
-        # Final completion message
+        # Final complete event
         yield json.dumps({
             "type": "complete",
             "content": final_answer,
@@ -96,44 +102,38 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
 
 
 async def ask_endpoint(request: Request):
-    """
-    Handle POST /ask request
-    Expects: question (form field), files (file uploads)
-    """
+    """Handle POST /ask"""
     try:
         form = await request.form()
         question = str(form.get("question", ""))
-        
+
         if not question:
-            return JSONResponse(
-                {"error": "question field is required"}, 
-                status_code=400
-            )
-        
+            return JSONResponse({"error": "question field is required"}, status_code=400)
+
         os.makedirs("/tmp", exist_ok=True)
         file_paths = []
         thread_ids = []
 
-        # Extract uploaded files
         files = [v for v in form.values() if isinstance(v, UploadFile)]
 
         for f in files:
             filename = f.filename or "uploaded.pdf"
-            path = os.path.join("/tmp", filename)
-            
+            clean_name = filename.replace(" ", "_").replace("\\", "_")
+            path = os.path.join("/tmp", clean_name)
+
             content = await f.read()
             with open(path, "wb") as out:
                 out.write(content)
-            
+
             file_paths.append(path)
-            tid = file_hash(path)
-            thread_ids.append(tid)
+            thread_ids.append(file_hash(path))
             print(f"[INFO] File saved: {path}")
 
-        # Combine thread IDs for consistent memory across files
-        combined_thread_id = "_".join(thread_ids) if thread_ids else "default-thread"
+        if not file_paths:
+            return JSONResponse({"error": "No files uploaded"}, status_code=400)
 
-        # Return streaming response
+        combined_thread_id = "_".join(thread_ids)
+
         return StreamingResponse(
             stream_response(question, file_paths, combined_thread_id),
             media_type="application/x-ndjson"
@@ -143,23 +143,14 @@ async def ask_endpoint(request: Request):
         print(f"[Error] Ask endpoint failed: {e}")
         import traceback
         traceback.print_exc()
-        return JSONResponse(
-            {"error": str(e)},
-            status_code=500
-        )
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 async def health_endpoint(request: Request):
-    """Health check endpoint"""
-    return JSONResponse({
-        "status": "ok",
-        "service": "DocuMind",
-        "version": "2.1"
-    })
+    return JSONResponse({"status": "ok", "service": "DocuMind", "version": "2.1"})
 
 
 async def info_endpoint(request: Request):
-    """API info endpoint"""
     return JSONResponse({
         "service": "DocuMind",
         "version": "2.1",
@@ -171,13 +162,15 @@ async def info_endpoint(request: Request):
         }
     })
 
+
 async def root_endpoint(request: Request):
     return JSONResponse({
         "message": "DocuMind API is running",
         "endpoints": ["/ask", "/health", "/info"]
     })
 
-# Define routes
+
+# Routes
 routes = [
     Route("/", root_endpoint, methods=["GET"]),
     Route("/ask", ask_endpoint, methods=["POST"]),
@@ -185,10 +178,9 @@ routes = [
     Route("/info", info_endpoint, methods=["GET"]),
 ]
 
-# Create Starlette app
+# Starlette app — Vercel picks up "app" automatically
 app = Starlette(routes=routes)
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -196,22 +188,14 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-         ],
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Vercel handler
-asgi_handler = Mangum(app)
-
-def handler(event, context):
-    return asgi_handler(event, context)
-
-
-
 if __name__ == "__main__":
     import uvicorn
-    # Local development
     uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")

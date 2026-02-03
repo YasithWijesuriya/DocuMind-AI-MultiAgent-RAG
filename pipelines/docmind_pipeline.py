@@ -2,8 +2,13 @@ import sys
 import os
 from pathlib import Path
 
-current_dir = Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+current_dir = Path(__file__).resolve().parent          
+project_root = str(current_dir.parent)                 
+
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
 
 from graph_nodes import *
 from graph_state import DocuMindState
