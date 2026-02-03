@@ -1,11 +1,6 @@
 import sys
 import os
-from pathlib import Path
 
-# Add project root to sys.path so pipelines/ agents/ config.py are all findable
-project_root = str(Path(__file__).resolve().parent.parent)
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 
             'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'NO_PROXY']:
@@ -13,7 +8,8 @@ for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY',
 
 print("[INFO] ✅ Proxy environment cleared")
 
-import config  # loads .env and validates keys
+# Import config
+import config
 
 import json
 import hashlib
@@ -25,6 +21,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
 from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node
+from mangum import Mangum
 
 
 def file_hash(path: str) -> str:
@@ -184,7 +181,6 @@ routes = [
     Route("/info", info_endpoint, methods=["GET"]),
 ]
 
-# Starlette app — Vercel picks up "app" automatically
 app = Starlette(routes=routes)
 
 app.add_middleware(
@@ -192,16 +188,21 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "https://*.vercel.app",
+       
+        "*",  
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+try:
+    from mangum import Mangum
+    handler = Mangum(app)
+except ImportError:
+    # If Mangum not installed, Railway will use uvicorn directly
+    pass
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
