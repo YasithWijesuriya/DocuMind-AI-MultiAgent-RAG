@@ -1,102 +1,161 @@
-from agents import route_question
-from agents import retrieve_relevant_chunks
-from agents import summarize_context
-from agents import compare_documents
-from agents import synthesize_answer
-from agents import validate_answer
-from agents import expert_analysis
-from agents import rewrite_question
-import sqlite3
+from agents.router_agent import route_question
+from agents.retrieval_agent import retrieve_relevant_chunks
+from agents.summary_agent import summarize_context, format_summary_result
+from agents.compare_agent import compare_documents, format_comparison_result
+from agents.synthesis_agent import synthesize_answer, format_synthesis_output
+from agents.validator_agent import validate_answer, format_validation_result
+from agents.expert_agent import expert_analysis, format_expert_result
+from agents.rewrite_agent import rewrite_question
 import json
 import os
-import shutil
+from typing import Optional, Any
+import hashlib
 
-def truncate_text(text: str, max_chars: int):
+
+class WholeStore:
     """
-    Forcefully cut text to a maximum number of characters
+    Storage backend compatible with Vercel's serverless environment
+    Uses /tmp for persistence (ephemeral) with optional fallback
+    """
+    
+    def __init__(self, db_path: str = "documind_memory.db"):
+        """
+        Initialize store with runtime path
+        
+        Args:
+            db_path: Path to store database (in /tmp for Vercel)
+        """
+        self.runtime_db_path = os.path.join("/tmp", os.path.basename(db_path))
+        self.memory_cache: dict = {}  #! Fallback in-memory cache
+        self._ensure_storage()
+
+    def _ensure_storage(self):
+        """Ensure storage directory exists"""
+        os.makedirs("/tmp", exist_ok=True)
+
+    def get(self, thread_id: str, key: str) -> Optional[dict]:
+        """
+        Retrieve data from storage
+        
+        Args:
+            thread_id: Thread identifier
+            key: Data key
+            
+        Returns:
+            Retrieved data or None
+        """
+        try:
+            #! Try file-based storage first
+            if os.path.exists(self.runtime_db_path):
+                with open(self.runtime_db_path, 'r') as f:
+                    content = f.read().strip()
+                   
+                    if content:
+                        data = json.loads(content)
+                        return data.get(thread_id, {}).get(key)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"[WARNING] File storage read failed: {e}")
+        
+        #! Fallback to memory cache
+        return self.memory_cache.get(thread_id, {}).get(key)
+
+
+    def put(self, thread_id: str, key: str, value: Any) -> bool:
+        """
+        Store data in storage
+        
+        Args:
+            thread_id: Thread identifier
+            key: Data key
+            value: Data to store
+            
+        Returns:
+            True if successful
+        """
+        try:
+            #! Try file-based storage
+            data = {}
+            if os.path.exists(self.runtime_db_path):
+                try:
+                    with open(self.runtime_db_path, 'r') as f:
+                        content = f.read().strip()
+                        if content:  
+                            data = json.loads(content)
+                except (json.JSONDecodeError, IOError) as e:
+                    print(f"[WARNING] File storage read before write failed: {e}, starting fresh")
+                    data = {}
+            
+            if thread_id not in data:
+                data[thread_id] = {}
+            
+            data[thread_id][key] = value
+            
+            with open(self.runtime_db_path, 'w') as f:
+                json.dump(data, f)
+                
+        except Exception as e:
+            print(f"[WARNING] File storage write failed: {e}, using memory")
+        
+        #! Always maintain memory cache as fallback
+        if thread_id not in self.memory_cache:
+            self.memory_cache[thread_id] = {}
+        self.memory_cache[thread_id][key] = value
+        
+        return True
+    
+store = WholeStore("documind_memory.db")
+
+
+def truncate_text(text: str, max_chars: int = 6000) -> str:
+    """
+    Truncate text to maximum characters (for API limits)
+    
+    Args:
+        text: Text to truncate
+        max_chars: Maximum character limit
+        
+    Returns:
+        Truncated text
     """
     if not text:
         return ""
+    return text[:max_chars] if len(text) > max_chars else text
 
-    if len(text) > max_chars:
-        return text[:max_chars]
 
-    return text
-
-class SQLiteStore:
-    def __init__(self, db_path="documind_memory.db"):
-        # Deploy-time path (original db) - read-only
-        self.original_db_path = db_path
+def memory_read_node(state: dict) -> dict:
+    """
+    Read conversation history from storage
+    
+    Args:
+        state: Current state
         
-        # Runtime path in /tmp - writeable in serverless
-        self.runtime_db_path = os.path.join("/tmp", "documind_memory.db")
-        
-        # Copy original db to /tmp on startup if not exists
-        if not os.path.exists(self.runtime_db_path):
-            if os.path.exists(self.original_db_path):
-                shutil.copy(self.original_db_path, self.runtime_db_path)
-            else:
-                # Create new empty DB
-                open(self.runtime_db_path, 'a').close()
-        
-        self.conn = sqlite3.connect(self.runtime_db_path, check_same_thread=False)
-        self._create_table()
-
-    def _create_table(self):
-        self.conn.execute("""
-            CREATE TABLE IF NOT EXISTS memory (
-                thread_id TEXT PRIMARY KEY,
-                data TEXT
-            )
-        """)
-        self.conn.commit()
-
-    def get(self, thread_id, key):
-        cursor = self.conn.execute("SELECT data FROM memory WHERE thread_id=?", (thread_id,))
-        row = cursor.fetchone()
-        if row:
-            return json.loads(row[0]).get(key)
-        return None
-
-    def put(self, thread_id, key, value):
-        cursor = self.conn.execute("SELECT data FROM memory WHERE thread_id=?", (thread_id,))
-        row = cursor.fetchone()
-        if row:
-            data = json.loads(row[0])
-            data[key] = value
-            self.conn.execute(
-                "UPDATE memory SET data=? WHERE thread_id=?",
-                (json.dumps(data), thread_id)
-            )
-        else:
-            data = {key: value}
-            self.conn.execute(
-                "INSERT INTO memory (thread_id, data) VALUES (?, ?)",
-                (thread_id, json.dumps(data))
-            )
-        self.conn.commit()
-
-
-
-store = SQLiteStore("documind_memory.db")
-
-def memory_read_node(state):
+    Returns:
+        Updated state with conversation history
+    """
     thread_id = state.get("thread_id", "default")
     try:
         raw = store.get(thread_id, "conversation")
-        if isinstance(raw, dict):
+        if isinstance(raw, dict) and "messages" in raw:
             state["conversation_history"] = raw.get("messages", [])
         else:
             state["conversation_history"] = []
-        print("HISTORY LOADED:", state["conversation_history"])
+        print(f"[INFO] Memory loaded for thread: {thread_id}")
     except Exception as e:
         print(f"[Error] Memory read failed: {e}")
         state["conversation_history"] = []
     return state
 
 
-def memory_write_node(state):
-    print("WRITING MEMORY")
+def memory_write_node(state: dict) -> dict:
+    """
+    Write conversation to storage
+    
+    Args:
+        state: Current state with final answer
+        
+    Returns:
+        Updated state
+    """
     thread_id = state.get("thread_id", "default")
     try:
         raw = store.get(thread_id, "conversation")
@@ -105,6 +164,7 @@ def memory_write_node(state):
         else:
             history = []
 
+        # Add new exchange
         history.append({
             "role": "user",
             "content": state.get("original_question", "")
@@ -115,32 +175,33 @@ def memory_write_node(state):
         })
 
         store.put(thread_id, "conversation", {"messages": history})
-        print("MEMORY SAVED:", history)
+        print(f"[INFO] Memory saved for thread: {thread_id}")
     except Exception as e:
         print(f"[Error] Memory write failed: {e}")
     return state
 
 
-def rewrite_node(state):
+def rewrite_node(state: dict) -> dict:
+    """
+    Rewrite question for clarity using conversation history
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        State with rewritten question
+    """
     try:
         question = state.get("question", "")
         state["original_question"] = question
 
         history = state.get("conversation_history") or []
-
         history_text = "\n".join(
-            f"{m.get('role')}: {m.get('content')}"
+            f"{m.get('role', 'unknown')}: {m.get('content', '')}"
             for m in history
         )
 
-        print("HISTORY PASSED TO REWRITE:", repr(history_text))
-        print("QUESTION:", question)
-
-        rewritten = rewrite_question(
-            history_text=history_text,
-            question=question
-        )
-
+        rewritten = rewrite_question(history_text=history_text, question=question)
         state["rewritten_question"] = rewritten.strip() if rewritten else question
 
     except Exception as e:
@@ -150,7 +211,16 @@ def rewrite_node(state):
     return state
 
 
-def router_node(state):
+def router_node(state: dict) -> dict:
+    """
+    Route question to appropriate agent
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        State with route decision
+    """
     try:
         q = state.get("rewritten_question", "")
         if not q:
@@ -166,9 +236,15 @@ def router_node(state):
     return state
 
 
-def retrieval_node(state):
+def retrieval_node(state: dict) -> dict:
     """
-    Main processing node - retrieves chunks from uploaded documents and processes based on route
+    Retrieve relevant chunks and process based on route
+    
+    Args:
+        state: Current state with question and documents
+        
+    Returns:
+        State with agent outputs and final answer
     """
     print(">>> ENTERED retrieval_node")
 
@@ -188,156 +264,171 @@ def retrieval_node(state):
             if hasattr(doc, 'metadata') and 'doc_id' in doc.metadata:
                 doc_namespaces.add(doc.metadata['doc_id'])
         
-        print(f"[INFO] Document namespaces to search: {doc_namespaces}")
+        print(f"[INFO] Document namespaces: {len(doc_namespaces)}")
         
         all_chunks = []
         
         if doc_namespaces:
             for namespace in doc_namespaces:
-                print(f">>> Retrieving chunks from namespace: {namespace}")
                 chunks = retrieve_relevant_chunks(query=query, top_k=2, namespace=namespace)
                 all_chunks.extend(chunks)
         else:
-            print(">>> No document namespaces found, searching all documents")
             chunks = retrieve_relevant_chunks(query=query, top_k=2)
             all_chunks.extend(chunks)
 
         if route != "summary" and not all_chunks:
-            state["agent_outputs"] = ["No relevant context found in the uploaded documents."]
-            state["final_answer"] = "I could not find relevant information in the uploaded documents to answer your question."
+            state["agent_outputs"] = ["No relevant context found."]
+            state["final_answer"] = "I could not find relevant information to answer your question."
             return state
 
+        #! Format chunks with sources
         texts = []
         for c in all_chunks:
             source = c.metadata.get('source', 'unknown')
+            #! Clean up source path
             if '\\' in source:
                 source = source.split('\\')[-1]
             elif '/' in source:
                 source = source.split('/')[-1]
                 
-            texts.append(
-                f"{c.page_content}\n[source: {source}]"
-            )
+            texts.append(f"{c.page_content}\n[source: {source}]")
 
-        retrieved_text = truncate_text("\n\n".join(texts), 6000)
-        print(f">>> Retrieved {len(all_chunks)} chunks total")
+        retrieved_text = truncate_text("\n\n".join(texts))
+        print(f">>> Retrieved {len(all_chunks)} chunks")
 
-        # Step 2: Process based on route
-        print(f">>> Processing with route: {route}")
-        
+        #! Process based on route
         if route == "summary":
-            print(">>> Summary route detected")
             result = summarize_context(retrieved_text)
-            state["agent_outputs"] = [result]
-            state["final_answer"] = result
-
+            formatted = format_summary_result(result)
+            state["agent_outputs"] = [formatted]
+            state["final_answer"] = formatted
             
         elif route == "expert":
-            print(">>> Generating expert analysis...")
-            result = expert_analysis(
-                context=retrieved_text,
-                question=query
-            )
-            state["agent_outputs"] = [result]
-            state["final_answer"] = result
+            result = expert_analysis(context=retrieved_text, question=query)
+            formatted = format_expert_result(result)
+            state["agent_outputs"] = [formatted]
+            state["final_answer"] = formatted
+            
+        elif route == "compare":
+            result = compare_documents(retrieved_text, "")
+            formatted = format_comparison_result(result)
+            state["agent_outputs"] = [formatted]
+            state["final_answer"] = formatted
             
         elif route == "retrieval":
-            print(">>> Processing retrieval...")
-            # For retrieval, still synthesize for clarity
             result = synthesize_answer([retrieved_text])
-            state["agent_outputs"] = [result]
-            state["final_answer"] = result
+            formatted = format_synthesis_output(result)
+            state["agent_outputs"] = [formatted]
+            state["final_answer"] = formatted
             
         else:  # Default
             result = synthesize_answer([retrieved_text])
-            state["agent_outputs"] = [result]
-            state["final_answer"] = result
+            formatted = format_synthesis_output(result)
+            state["agent_outputs"] = [formatted]
+            state["final_answer"] = formatted
 
     except Exception as e:
-        print(f"[Error] Processing node failed: {e}")
+        print(f"[Error] Retrieval node failed: {e}")
         import traceback
         traceback.print_exc()
-        state["agent_outputs"] = [f"Error during processing: {str(e)}"]
+        state["agent_outputs"] = [f"Error: {str(e)}"]
         state["final_answer"] = f"An error occurred: {str(e)}"
         
     return state
 
 
-def compare_node(state):
+def compare_node(state: dict) -> dict:
     """
-    Special node for comparing documents
+    Compare multiple documents
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        State with comparison result
     """
     print(">>> ENTERED compare_node")
     docs = state.get("docs", [])
 
     if len(docs) >= 2:
         try:
-            doc_a = truncate_text(docs[0].page_content if hasattr(docs[0], 'page_content') else str(docs[0]), 3000)
-            doc_b = truncate_text(docs[1].page_content if hasattr(docs[1], 'page_content') else str(docs[1]), 3000)
+            doc_a = truncate_text(
+                docs[0].page_content if hasattr(docs[0], 'page_content') else str(docs[0]), 
+                3000
+            )
+            doc_b = truncate_text(
+                docs[1].page_content if hasattr(docs[1], 'page_content') else str(docs[1]), 
+                3000
+            )
             
             result = compare_documents(doc_a, doc_b)
-            state["agent_outputs"] = [result]
+            formatted = format_comparison_result(result)
+            state["agent_outputs"] = [formatted]
         except Exception as e:
             print(f"[Error] Compare node failed: {e}")
             state["agent_outputs"] = ["Error comparing documents."]
     else:
-        state["agent_outputs"] = ["Not enough documents to compare"]
+        state["agent_outputs"] = ["Not enough documents to compare."]
 
     return state
 
 
-def synthesis_node(state):
+def synthesis_node(state: dict) -> dict:
     """
-    Synthesis node - final answer already set by retrieval_node for most routes
-    This node only applies synthesis if needed for compare route
+    Synthesis node - synthesizes final answer if needed
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        State with final synthesized answer
     """
     print(">>> ENTERED synthesis_node")
     
     route = state.get("route", "retrieval")
     final_answer = state.get("final_answer")
     
-    #  If final_answer already set (from retrieval/summary/expert), skip synthesis
+    #! Skip synthesis if answer already set
     if final_answer and route != "compare":
-        print(f">>> Final answer already set, skipping synthesis")
         return state
     
     outputs = state.get("agent_outputs", [])
-
     if not outputs:
-        state["final_answer"] = "No agent outputs available to synthesize."
+        state["final_answer"] = "No outputs to synthesize."
         return state
 
-    safe_outputs = []
-    
     try:
-        safe_outputs = [truncate_text(o, max_chars=4000) for o in outputs if o]
-
+        safe_outputs = [truncate_text(o, 4000) for o in outputs if o]
         if not safe_outputs:
-            state["final_answer"] = "No valid content to synthesize."
+            state["final_answer"] = "No valid content."
             return state
 
-        final_answer = synthesize_answer(safe_outputs)
-        state["final_answer"] = final_answer
+        result = synthesize_answer(safe_outputs)
+        formatted = format_synthesis_output(result)
+        state["final_answer"] = formatted
         
     except Exception as e:
-        print(f"[Error] Synthesis node failed: {e}")
-        import traceback
-        traceback.print_exc()
-        #  Now safe_outputs is always defined
-        state["final_answer"] = safe_outputs[0] if safe_outputs else "Error generating answer."
+        print(f"[Error] Synthesis failed: {e}")
+        state["final_answer"] = outputs[0] if outputs else "Error generating answer."
         
     return state
 
 
-def validator_node(state):
+def validator_node(state: dict) -> dict:
     """
-    Validate the final answer against evidence
+    Validate final answer against evidence
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        State with validation result
     """
     print(">>> ENTERED validator_node")
     outputs = state.get("agent_outputs", [])
 
     if not outputs:
-        state["validation"] = {"status": "FAIL", "report": "No evidence provided."}
+        state["validation"] = {"status": "FAIL", "report": "No evidence."}
         return state
 
     try:
@@ -345,16 +436,15 @@ def validator_node(state):
         final_answer = state.get("final_answer", "")
         
         if not final_answer:
-            state["validation"] = {"status": "FAIL", "report": "No final answer to validate."}
+            state["validation"] = {"status": "FAIL", "report": "No answer."}
             return state
         
         result = validate_answer(final_answer, evidence)
-        state["validation"] = result
+        formatted = format_validation_result(result)
+        state["validation"] = {"status": result.status, "report": formatted}
         
     except Exception as e:
-        print(f"[Error] Validator node failed: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[Error] Validation failed: {e}")
         state["validation"] = {"status": "ERROR", "report": str(e)}
         
     return state

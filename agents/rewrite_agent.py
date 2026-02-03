@@ -1,44 +1,84 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
+
+
+class RewriteResult(BaseModel):
+    """Structured output for question rewriting"""
+    rewritten_question: str = Field(description="Standalone, self-contained question")
+    is_follow_up: bool = Field(default=False, description="Whether this is a follow-up question")
+
 
 rewrite_prompt = ChatPromptTemplate.from_template(
-    """You are a professional question rewriting agent for a document-based Q&A system.
+    """
+# **Question Rewriting Service**
 
-Your goal is to rewrite the user's latest question so that it is:
-1. Fully self-contained and understandable without prior context
-2. Clear, precise, and unambiguous
-3. Suitable for semantic search over documents
+## **Your Objective**
+Transform the user's question into a clear, standalone query suitable for document analysis.
 
-Rules:
-- Only use the conversation history if necessary to resolve pronouns or references (e.g., "it", "this", "that", "they").
-- If the question is already clear and standalone, return it unchanged.
-- Do NOT introduce new information or content.
-- Do NOT attempt to answer the question.
-- Do NOT include explanations, reasoning, or extra text.
-- Preserve the user's intent and meaning exactly.
+## **Rewriting Rules**
+✓ Make the question fully self-contained  
+✓ Resolve pronouns and unclear references  
+✓ Preserve user intent exactly  
+✓ Keep the meaning precise and unambiguous  
+✗ Do NOT introduce new information  
+✗ Do NOT answer the question  
+✗ Do NOT add reasoning or explanations  
 
-Conversation history (for reference if needed):
+---
+
+## **Conversation History**
+(Use only if necessary to resolve references)
 {history}
 
-User's latest question:
+## **User's Latest Question**
 {question}
 
-Rewritten standalone question:"""
-) 
+---
 
-llm = ChatOpenAI( 
+## **Required Output**
+
+### **1. Rewritten Question**
+Standalone, clear, and precise version
+
+### **2. Follow-up Status**
+Indicate if this is a follow-up question (true/false)
+"""
+)
+
+
+
+def rewrite_question(history_text: str, question: str) -> str:
+    """
+    Rewrite question to be standalone using conversation history if needed
+    
+    Args:
+        history_text: Previous conversation context
+        question: Current question to rewrite
+        
+    Returns:
+        Rewritten standalone question
+    """
+    llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0.2
     )
 
-chain = rewrite_prompt | llm
-
-def rewrite_question(history_text: str, question: str) -> str:
+    structured_llm = llm.with_structured_output(RewriteResult)
+    chain = rewrite_prompt | structured_llm
 
     response = chain.invoke({
         "history": history_text,
         "question": question
     })
-    print(f"History: {history_text}, Question: {question}")
+    if isinstance(response, RewriteResult):
+        result = response
+    else:
+        result = RewriteResult.model_validate(response)
     
-    return str(response.content)
+    print(f"[REWRITE] Original: {question}")
+    print(f"[REWRITE] Rewritten: {result.rewritten_question}")
+    print(f"[REWRITE] Is follow-up: {result.is_follow_up}")
+
+   
+    return result.rewritten_question

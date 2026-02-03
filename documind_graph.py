@@ -13,7 +13,6 @@ from pipelines.graph_nodes import (
 
 graph = StateGraph(DocuMindState)
 
-# Add all nodes
 graph.add_node("memory_read", memory_read_node)
 graph.add_node("rewrite", rewrite_node)
 graph.add_node("router", router_node)
@@ -23,21 +22,29 @@ graph.add_node("synthesis", synthesis_node)
 graph.add_node("validator", validator_node)
 graph.add_node("memory_write", memory_write_node)
 
+# Set entry point
 graph.set_entry_point("memory_read")
 
-# Add edges for main flow (SEQUENTIAL)
+# edges for main flow
 graph.add_edge("memory_read", "rewrite")
 graph.add_edge("rewrite", "router")
 
-def route_decision(state):
+
+def route_decision(state: dict) -> str:
     """
     Conditional routing based on router decision
+    
+    Args:
+        state: Current state
+        
+    Returns:
+        Route type
     """
     route = state.get("route", "retrieval")
     print(f">>> Router decided: {route}")
     return route
 
-# ALWAYS start with retrieval regardless of route
+
 graph.add_conditional_edges(
     "router",
     route_decision,

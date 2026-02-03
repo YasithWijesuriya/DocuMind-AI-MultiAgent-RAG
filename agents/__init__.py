@@ -1,4 +1,4 @@
-from.ingestion_agent import ingest_document
+from .ingestion_agent import ingest_document
 from .retrieval_agent import retrieve_relevant_chunks
 from .router_agent import route_question
 from .summary_agent import summarize_context

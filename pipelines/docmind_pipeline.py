@@ -1,98 +1,93 @@
-# pipelines/docmind_pipeline.py
+import sys
+import os
+from pathlib import Path
 
-from pipelines.graph_nodes import *
-from pipelines.graph_state import DocuMindState
+current_dir = Path(__file__).parent
+sys.path.insert(0, str(current_dir))
+
+from graph_nodes import *
+from graph_state import DocuMindState
 from documind_graph import app
+from agents import ingest_document  
 from langchain_community.document_loaders import PyPDFLoader
-from agents.ingestion_agent import auto_ingest_new_document
-from agents import route_question, rewrite_question
 from langchain_core.documents import Document
 import uuid
 import hashlib
-import os  
 
-def ask(question: str, docs: list[str], auto_ingest: bool = False):
-    print(">>> ask() started")
-    """
-    Main pipeline function.
 
-    :param question: user question
-    :param docs: list of document contents OR file paths
-    :param auto_ingest: if True, auto-ingest file paths into Pinecone
+def ask(question: str, docs: list[str], auto_ingest: bool = False) -> dict:
     """
+    Main pipeline function - orchestrates multi-agent document analysis
+    
+    Args:
+        question: User's question
+        docs: List of document contents or file paths
+        auto_ingest: Whether to auto-ingest PDFs into vector store
+        
+    Returns:
+        Dictionary with final_answer and validation results
+    """
+    print(">>> ask() pipeline started")
     loaded_docs = []
     
     try:
-        if auto_ingest:
-            print(">>> Auto ingest enabled")
-            for doc in docs:
-                print(f">>> Ingesting: {doc}")
-                if doc.endswith(".pdf"):
-                    try:
-                        auto_ingest_new_document(doc)
-                        
-                        hasher = hashlib.sha256()
-                        with open(doc, "rb") as f:
-                            hasher.update(f.read())
-                        doc_id = hasher.hexdigest()
-                        
-                        loader = PyPDFLoader(doc)
-                        chunks = loader.load()
-                        
-                        for chunk in chunks:
-                            chunk.metadata["doc_id"] = doc_id
-                        
-                        loaded_docs.extend(chunks)
-                        print(f"[INFO] Document {doc} loaded with doc_id: {doc_id}")
-                    except Exception as e:
-                        print(f"[Error] Auto-ingestion failed for {doc}: {e}")
-                
-                else:
-                    loaded_docs.append(Document(page_content=doc, metadata={"source": "user_input"}))
-        else:
-            for doc in docs:
-                if isinstance(doc, str):
-                    if doc.endswith(".pdf") and os.path.exists(doc):
-                        print(f">>> Loading PDF file: {doc}")
-                        try:
-                            hasher = hashlib.sha256()
-                            with open(doc, "rb") as f:
-                                hasher.update(f.read())
-                            doc_id = hasher.hexdigest()
-                            
-                            loader = PyPDFLoader(doc)
-                            chunks = loader.load()
-                            
-                            for chunk in chunks:
-                                chunk.metadata["doc_id"] = doc_id
-                                if "source" not in chunk.metadata or chunk.metadata.get("source") == "":
-                                    chunk.metadata["source"] = os.path.basename(doc)
-                            
-                            loaded_docs.extend(chunks)
-                            print(f"[INFO] PDF loaded successfully: {doc}")
-                            print(f"[INFO] - doc_id: {doc_id}")
-                            print(f"[INFO] - chunks extracted: {len(chunks)}")
-                        except Exception as e:
-                            print(f"[Error] PDF loading failed for {doc}: {e}")
-                            import traceback
-                            traceback.print_exc()
-                    else:
-                        print(f">>> Treating as plain text content")
-                        loaded_docs.append(
-                            Document(page_content=doc, metadata={"source": "user_input"})
-                        )
-                else:
-                    # Already a Document object
-                    loaded_docs.append(doc)
+        for doc in docs:
+            if isinstance(doc, str) and doc.endswith(".pdf") and os.path.exists(doc):
+                try:
+                    #! Generate doc_id from file hash
+                    hasher = hashlib.sha256()
+                    with open(doc, "rb") as f:
+                        hasher.update(f.read())
+                    doc_id = hasher.hexdigest()
+
+                    #! Ingest PDF into Pinecone
+                    if auto_ingest:
+                        print(f"[INFO] Running ingestion for: {doc}")
+                        ingest_result = ingest_document(doc, force=False)
+                        print(f"[INFO] Ingestion status: {ingest_result.get('status')}")
+                        print(f"[INFO] Ingestion details: {ingest_result}")
+
+                    #!  Load PDF pages as LangChain Documents
+                    loader = PyPDFLoader(doc)
+                    chunks = loader.load()
+
+                    #!  Attach doc_id and source to each chunk metadata
+                    for chunk in chunks:
+                        chunk.metadata["doc_id"] = doc_id
+                        if "source" not in chunk.metadata:
+                            chunk.metadata["source"] = os.path.basename(doc)
+
+                    loaded_docs.extend(chunks)
+                    print(f"[INFO] PDF loaded: {doc} ({len(chunks)} pages)")
+
+                except Exception as e:
+                    print(f"[Error] Failed to process {doc}: {e}")
+                    import traceback
+                    traceback.print_exc()
+            else:
+                #! Plain text input
+                loaded_docs.append(
+                    Document(page_content=str(doc), metadata={"source": "user_input"})
+                )
 
         print(f"[INFO] Total documents loaded: {len(loaded_docs)}")
+
+        #! If no docs loaded, return error
+        if not loaded_docs:
+            return {
+                "final_answer": "No documents were loaded. Please upload a valid PDF file.",
+                "validation": {"status": "ERROR"},
+                "route": "",
+                "thread_id": ""
+            }
+
         
         state: DocuMindState = {
             "question": question,
             "docs": loaded_docs,
             "agent_outputs": [],
-            "thread_id": str(uuid.uuid4()),  
-            "conversation_history": [],  
+            "thread_id": str(uuid.uuid4()),
+            "conversation_history": [],
             "original_question": "",
             "rewritten_question": "",
             "route": "",
@@ -100,24 +95,41 @@ def ask(question: str, docs: list[str], auto_ingest: bool = False):
             "validation": {}
         }
 
+        #! Execute graph
         result = app.invoke(state)
-        print(">>> ask() finished")
-        print(f">>> Result: {result}")
-        return result
+        print(">>> Pipeline completed successfully")
+        
+        return {
+            "final_answer": result.get("final_answer", ""),
+            "validation": result.get("validation", {}),
+            "route": result.get("route", ""),
+            "thread_id": result.get("thread_id", "")
+        }
+        
     except Exception as e:
         print(f"[Error] Pipeline execution failed: {e}")
         import traceback
         traceback.print_exc()
-        return {"error": str(e)}
+        return {
+            "final_answer": f"Pipeline error: {str(e)}",
+            "validation": {"status": "ERROR"},
+            "error": str(e)
+        }
 
 
 def get_route_type(question: str) -> str:
     """
-    Simple function to determine route type based on the question.
-    Returns "summary" if the question seems like a summary request,
-    else returns "default".
+    Determine route type from question keywords
+    
+    Args:
+        question: User's question
+        
+    Returns:
+        Route type: "summary" or "default"
     """
-    summary_keywords = ["summarize", "summary", "overview", "short version"]
-    if any(word.lower() in question.lower() for word in summary_keywords):
+    summary_keywords = ["summarize", "summary", "overview", "short version", "brief"]
+    
+    if any(keyword.lower() in question.lower() for keyword in summary_keywords):
         return "summary"
+    
     return "default"
