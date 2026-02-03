@@ -200,7 +200,11 @@ app.add_middleware(
 
 
 # Vercel handler
-handler = Mangum(app)
+asgi_handler = Mangum(app)
+
+def handler(event, context):
+    return asgi_handler(event, context)
+
 
 
 if __name__ == "__main__":
