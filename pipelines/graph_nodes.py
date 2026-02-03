@@ -12,7 +12,7 @@ from typing import Optional, Any
 import hashlib
 
 
-class WholeStore:
+class VercelFriendlyStore:
     """
     Storage backend compatible with Vercel's serverless environment
     Uses /tmp for persistence (ephemeral) with optional fallback
@@ -103,7 +103,7 @@ class WholeStore:
         
         return True
     
-store = WholeStore("documind_memory.db")
+store = VercelFriendlyStore("documind_memory.db")
 
 
 def truncate_text(text: str, max_chars: int = 6000) -> str:

@@ -19,7 +19,6 @@ openai==1.59.7
 pinecone[grpc]==5.4.2
 
 # Parsing & PDFs
-unstructured==0.15.0
 pypdf==4.3.1
 
 # Utils

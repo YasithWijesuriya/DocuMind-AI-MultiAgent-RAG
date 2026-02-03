@@ -9,11 +9,11 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
-from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node, WholeStore
+from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node, VercelFriendlyStore
 from mangum import Mangum
 
 
-store = WholeStore("documind_memory.db")
+store = VercelFriendlyStore("documind_memory.db")
 
 
 def file_hash(path: str) -> str:
