@@ -1,13 +1,7 @@
-"""
-Configuration Module - MUST be imported FIRST before anything else
-Handles environment setup and proxy clearing
-"""
-
 import os
 import sys
 
-# ✅ ABSOLUTE FIRST: Clear all proxy environment variables
-# This must happen BEFORE any other imports
+
 _proxy_vars = [
     'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY',
     'http_proxy', 'https_proxy', 'all_proxy',
@@ -19,7 +13,7 @@ for var in _proxy_vars:
         print(f"[INFO] Clearing proxy: {var}")
         os.environ.pop(var)
 
-print("[INFO] ✅ Proxy environment cleared in config module")
+print("[INFO] ✔ Proxy environment cleared in config module")
 
 # NOW safe to import dotenv and other stuff
 from dotenv import load_dotenv

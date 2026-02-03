@@ -63,4 +63,4 @@ graph.add_edge("synthesis", "validator")
 graph.add_edge("validator", "memory_write")
 graph.add_edge("memory_write", END)
 
-app = graph.compile()
+documind_graph = graph.compile()
