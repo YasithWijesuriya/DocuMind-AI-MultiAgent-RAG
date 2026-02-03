@@ -171,9 +171,15 @@ async def info_endpoint(request: Request):
         }
     })
 
+async def root_endpoint(request: Request):
+    return JSONResponse({
+        "message": "DocuMind API is running",
+        "endpoints": ["/ask", "/health", "/info"]
+    })
 
 # Define routes
 routes = [
+    Route("/", root_endpoint, methods=["GET"]),
     Route("/ask", ask_endpoint, methods=["POST"]),
     Route("/health", health_endpoint, methods=["GET"]),
     Route("/info", info_endpoint, methods=["GET"]),
