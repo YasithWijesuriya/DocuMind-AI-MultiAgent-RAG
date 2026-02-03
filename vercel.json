@@ -1,20 +1,20 @@
 {
   "version": 2,
-
-  "functions": {
-    "api/index.py": {
-      "runtime": "@vercel/python@4.2.0",
-      "maxDuration": 60
+  "builds": [
+    {
+      "src": "index.py",
+      "use": "@vercel/python@4.2.0",
+      "config": {
+        "pythonVersion": "3.11"
+      }
     }
-  },
-
-  "routes": [
-    { "src": "/", "dest": "/api/index.py" },
-    { "src": "/ask", "dest": "/api/index.py" },
-    { "src": "/health", "dest": "/api/index.py" },
-    { "src": "/info", "dest": "/api/index.py" }
   ],
-
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "index.py"
+    }
+  ],
   "env": {
     "PYTHONUNBUFFERED": "1"
   }

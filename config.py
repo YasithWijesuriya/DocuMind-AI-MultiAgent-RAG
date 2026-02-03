@@ -8,11 +8,11 @@ _proxy_vars = [
     'no_proxy', 'NO_PROXY'
 ]
 
-for var in _proxy_vars:
-    if var in os.environ:
-        print(f"[INFO] Clearing proxy: {var}")
-        os.environ.pop(var)
-
+for var in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY',
+            'http_proxy', 'https_proxy', 'all_proxy',
+            'no_proxy', 'NO_PROXY']:
+    os.environ.pop(var, None)
+    
 print("[INFO] ✔ Proxy environment cleared in config module")
 
 # NOW safe to import dotenv and other stuff
