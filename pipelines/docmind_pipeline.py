@@ -7,7 +7,7 @@ sys.path.insert(0, str(current_dir))
 
 from graph_nodes import *
 from graph_state import DocuMindState
-from documind_graph import app
+from documind_graph import documind_graph
 from agents import ingest_document  
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -96,7 +96,7 @@ def ask(question: str, docs: list[str], auto_ingest: bool = False) -> dict:
         }
 
         #! Execute graph
-        result = app.invoke(state)
+        result = documind_graph.invoke(state)
         print(">>> Pipeline completed successfully")
         
         return {
