@@ -2,12 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
+      "src": "api/app.py",
       "use": "@vercel/python@4.2.0",
       "config": {
         "pythonVersion": "3.11"
       }
     }
+  ],
+  "routes": [
+    { "src": "/", "dest": "/api/app.py" },
+    { "src": "/ask", "dest": "/api/app.py" },
+    { "src": "/health", "dest": "/api/app.py" },
+    { "src": "/info", "dest": "/api/app.py" }
   ],
   "env": {
     "PYTHONUNBUFFERED": "1"
