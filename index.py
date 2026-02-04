@@ -25,6 +25,62 @@ from starlette.staticfiles import StaticFiles
 from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node
 from mangum import Mangum
 
+# DEBUG: Print file structure
+print("\n" + "="*60)
+print("[DEBUG] CHECKING FILE STRUCTURE")
+print("="*60)
+
+current_dir = Path(__file__).parent
+print(f"[DEBUG] Current file location: {__file__}")
+print(f"[DEBUG] Current directory: {current_dir}")
+print(f"[DEBUG] Current directory (absolute): {current_dir.absolute()}")
+
+print(f"\n[DEBUG] Contents of {current_dir}:")
+try:
+    for item in sorted(current_dir.iterdir()):
+        if item.is_dir():
+            print(f"  📁 {item.name}/")
+        else:
+            print(f"  📄 {item.name}")
+except Exception as e:
+    print(f"  ❌ Error listing directory: {e}")
+
+# Check documind-frontend
+frontend_dir = current_dir / "documind-frontend"
+print(f"\n[DEBUG] Checking documind-frontend at: {frontend_dir}")
+print(f"[DEBUG] Exists: {frontend_dir.exists()}")
+
+if frontend_dir.exists():
+    print(f"[DEBUG] Contents of documind-frontend/:")
+    try:
+        for item in sorted(frontend_dir.iterdir()):
+            if item.is_dir():
+                print(f"  📁 {item.name}/")
+            else:
+                print(f"  📄 {item.name}")
+    except Exception as e:
+        print(f"  ❌ Error listing directory: {e}")
+    
+    # Check dist folder
+    dist_dir = frontend_dir / "dist"
+    print(f"\n[DEBUG] Checking dist at: {dist_dir}")
+    print(f"[DEBUG] Exists: {dist_dir.exists()}")
+    
+    if dist_dir.exists():
+        print(f"[DEBUG] Contents of documind-frontend/dist/:")
+        try:
+            for item in sorted(dist_dir.iterdir())[:10]:  # Show first 10 items
+                if item.is_dir():
+                    print(f"  📁 {item.name}/")
+                else:
+                    print(f"  📄 {item.name}")
+        except Exception as e:
+            print(f"  ❌ Error listing directory: {e}")
+else:
+    print(f"[DEBUG] ❌ documind-frontend folder NOT found!")
+
+print("="*60 + "\n")
+
 
 def file_hash(path: str) -> str:
     """Generate file hash for thread ID"""
@@ -72,11 +128,11 @@ async def stream_response(question: str, file_paths: list[str], thread_id: str):
 
         # Save to memory
         state["original_question"] = question
-        state["final_answer"] = result.get("final_answer", "")  # FIX: use result, not state
+        state["final_answer"] = result.get("final_answer", "")
         memory_write_node(state)
 
         # Stream the final answer word by word
-        final_answer = result.get("final_answer", "")  # FIX: use result
+        final_answer = result.get("final_answer", "")
 
         if final_answer:
             words = final_answer.split()
@@ -177,7 +233,6 @@ async def root_endpoint(request: Request):
 
 # Routes
 routes = [
-    Route("/", root_endpoint, methods=["GET"]),
     Route("/ask", ask_endpoint, methods=["POST"]),
     Route("/health", health_endpoint, methods=["GET"]),
     Route("/info", info_endpoint, methods=["GET"]),
@@ -190,30 +245,40 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
-       
         "*",  
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================
+# SERVE REACT FRONTEND FROM documind-frontend/dist/
+# ============================================================
 static_path = Path(__file__).parent / "documind-frontend" / "dist"
 
+print(f"[INFO] Looking for static files at: {static_path}")
+print(f"[INFO] Path exists: {static_path.exists()}")
+
 if static_path.exists():
-    print(f"[INFO] ✔ Serving static files from {static_path}")
-    # Mount static files AFTER middleware but BEFORE creating handler
+    print(f"[INFO] ✅ Serving React frontend from {static_path}")
     app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 else:
-    print(f"[WARNING] Static files directory not found at {static_path}")
-    print(f"[WARNING] Make sure your React build files are in the 'dist' folder")
+    print(f"[ERROR] ❌ Static files NOT found at {static_path}")
+    print(f"[ERROR] dist/ folder is missing - React UI will not be served")
+    print(f"[ERROR] Only API endpoints will work: /ask, /health, /info")
+
+# ============================================================
+
 try:
     from mangum import Mangum
     handler = Mangum(app)
 except ImportError:
-    # If Mangum not installed, Railway will use uvicorn directly
     pass
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    # Get PORT from environment variable, default to 8000
+    port = int(os.getenv("PORT", "8000"))
+    print(f"[INFO] Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
