@@ -6,7 +6,7 @@ for key in ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY',
             'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'NO_PROXY']:
     os.environ.pop(key, None)
 
-print("[INFO] ✅ Proxy environment cleared")
+print("[INFO] Proxy environment cleared")
 
 # Import config
 import config
@@ -39,11 +39,11 @@ print(f"\n[DEBUG] Contents of {current_dir}:")
 try:
     for item in sorted(current_dir.iterdir()):
         if item.is_dir():
-            print(f"  📁 {item.name}/")
+            print(f"  [DIR] {item.name}/")
         else:
-            print(f"  📄 {item.name}")
+            print(f"  [FILE] {item.name}")
 except Exception as e:
-    print(f"  ❌ Error listing directory: {e}")
+    print(f"  [ERROR] Error listing directory: {e}")
 
 # Check documind-frontend
 frontend_dir = current_dir / "documind-frontend"
@@ -55,11 +55,11 @@ if frontend_dir.exists():
     try:
         for item in sorted(frontend_dir.iterdir()):
             if item.is_dir():
-                print(f"  📁 {item.name}/")
+                print(f"  [DIR] {item.name}/")
             else:
-                print(f"  📄 {item.name}")
+                print(f"  [FILE] {item.name}")
     except Exception as e:
-        print(f"  ❌ Error listing directory: {e}")
+        print(f"  [ERROR] Error listing directory: {e}")
     
     # Check dist folder
     dist_dir = frontend_dir / "dist"
@@ -71,13 +71,13 @@ if frontend_dir.exists():
         try:
             for item in sorted(dist_dir.iterdir())[:10]:  # Show first 10 items
                 if item.is_dir():
-                    print(f"  📁 {item.name}/")
+                    print(f"  [DIR] {item.name}/")
                 else:
-                    print(f"  📄 {item.name}")
+                    print(f"  [FILE] {item.name}")
         except Exception as e:
-            print(f"  ❌ Error listing directory: {e}")
+            print(f"  [ERROR] Error listing directory: {e}")
 else:
-    print(f"[DEBUG] ❌ documind-frontend folder NOT found!")
+    print(f"[DEBUG] documind-frontend folder NOT found!")
 
 print("="*60 + "\n")
 
@@ -201,7 +201,7 @@ async def ask_endpoint(request: Request):
         )
 
     except Exception as e:
-        print(f"[Error] Ask endpoint failed: {e}")
+        print(f"[ERROR] Ask endpoint failed: {e}")
         import traceback
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -252,23 +252,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================
-# SERVE REACT FRONTEND FROM documind-frontend/dist/
-# ============================================================
+#! SERVE REACT FRONTEND FROM documind-frontend/dist/
 static_path = Path(__file__).parent / "documind-frontend" / "dist"
 
 print(f"[INFO] Looking for static files at: {static_path}")
 print(f"[INFO] Path exists: {static_path.exists()}")
 
 if static_path.exists():
-    print(f"[INFO] ✅ Serving React frontend from {static_path}")
+    print(f"[INFO] Serving React frontend from {static_path}")
     app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
 else:
-    print(f"[ERROR] ❌ Static files NOT found at {static_path}")
+    print(f"[ERROR] Static files NOT found at {static_path}")
     print(f"[ERROR] dist/ folder is missing - React UI will not be served")
     print(f"[ERROR] Only API endpoints will work: /ask, /health, /info")
 
-# ============================================================
 
 try:
     from mangum import Mangum
