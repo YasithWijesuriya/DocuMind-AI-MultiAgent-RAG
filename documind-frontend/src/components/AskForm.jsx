@@ -127,7 +127,7 @@ export default function AskForm() {
     });
 
     try {
-      const response = await fetch("http://localhost:8000/ask", {
+      const response = await fetch("https://web-production-d725e.up.railway.app/ask", {
         method: "POST",
         body: formData,
       });
