@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 import httpx
 
 
-
 class ComparisonResult(BaseModel):
     """Structured output for document comparison"""
     similarities: list[str] = Field(

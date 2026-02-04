@@ -14,12 +14,14 @@ import config
 import json
 import hashlib
 import asyncio
+from pathlib import Path
 from starlette.applications import Starlette
 from starlette.routing import Route
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.datastructures import UploadFile
+from starlette.staticfiles import StaticFiles
 from pipelines.graph_nodes import memory_read_node, memory_write_node, rewrite_node
 from mangum import Mangum
 
@@ -195,6 +197,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+static_path = Path(__file__).parent / "dist"  # Change "dist" if your build folder is different
+
+if static_path.exists():
+    print(f"[INFO] ✔ Serving static files from {static_path}")
+    # Mount static files AFTER middleware but BEFORE creating handler
+    app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+else:
+    print(f"[WARNING] Static files directory not found at {static_path}")
+    print(f"[WARNING] Make sure your React build files are in the 'dist' folder")
 try:
     from mangum import Mangum
     handler = Mangum(app)
