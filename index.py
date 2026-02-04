@@ -197,7 +197,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-static_path = Path(__file__).parent / "dist"  # Change "dist" if your build folder is different
+static_path = Path(__file__).parent / "documind-frontend" / "dist"
 
 if static_path.exists():
     print(f"[INFO] ✔ Serving static files from {static_path}")
